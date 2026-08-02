@@ -28,14 +28,14 @@ jobs:
         with:
           global-json-file: global.json
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4.37.3
         with:
           languages: csharp
           queries: security-and-quality
 
       - run: dotnet build FlowX.slnx --configuration Release
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4.37.3
         with:
           category: /language:csharp
 
