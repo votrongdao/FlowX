@@ -11,7 +11,7 @@ import {
   Skeleton,
   Tabs,
 } from '@/design/primitives'
-import { useEntityPage, useEntityRecord, useProcess } from '@/api/queries/hooks'
+import { useEntityPage, useEntityRecord, useProcess, useSchema } from '@/api/queries/hooks'
 import { modelFor } from '@/fixtures/objects'
 import { renderCell } from './RecordCell'
 import { entityOf, keyColumnOf, toRows } from './liveRecords'
@@ -38,10 +38,61 @@ type RecordTab = 'details' | 'related' | 'activity' | 'files'
  * appears here, and a record in a stage the model does not have is visibly in none of them rather
  * than silently drawn as the first.
  */
-/** The kinds a custom field can be declared on, which is what the edit drawer writes. */
+/**
+ * The kinds a custom field can be declared *on*, which is not the same as the kinds that have one.
+ *
+ * Membership here is necessary for Edit to do anything and nowhere near sufficient: a tenant that
+ * has declared nothing on contacts has an Edit that opens a drawer listing no fields and offering
+ * "Save 0 change(s)". Being in this list is checked against the schema below before the button is
+ * offered.
+ */
 const EDITABLE: readonly string[] = ['Lead', 'Account', 'Contact', 'Opportunity']
 
+/**
+ * The record page.
+ *
+ * Everything it draws is {@link RecordDetail}, which the list's peek draws too. That is the whole
+ * point of the split: the page and the peek were about to be two renderings of one record, and
+ * two renderings drift — the peek grows a field the page does not have, or stops showing one it
+ * does, and nobody notices because nobody opens both at once.
+ */
 export function RecordScreen({ objectKey, id }: { objectKey: string; id: string }) {
+  return (
+    <Page layout="full">
+      <RecordDetail objectKey={objectKey} id={id} density="full" />
+    </Page>
+  )
+}
+
+/**
+ * How much room the record has.
+ *
+ * `full` is the page. `peek` is the drawer at its narrowest, where the highlight strip and the
+ * stage path are the first things to go — both are horizontal by nature, and a horizontal strip in
+ * a 452px column is three items wrapping onto four lines, which reads as damage rather than
+ * density. What stays is the identity, the actions and the sections, because those are what
+ * somebody opened the record to see.
+ */
+export type RecordDensity = 'peek' | 'full'
+
+export function RecordDetail({
+  objectKey,
+  id,
+  density = 'full',
+  identity = true,
+}: {
+  objectKey: string
+  id: string
+  density?: RecordDensity
+  /**
+   * Whether to draw the record's own name and id.
+   *
+   * The drawer states them in its header, so a peek that drew them again showed the account name
+   * twice, eleven pixels apart. The actions stay either way — they are the record's, not the
+   * chrome's.
+   */
+  identity?: boolean
+}) {
   const navigate = useNavigate()
   const model = modelFor(objectKey)
   const { tenantId } = useSession()
@@ -59,6 +110,12 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
   const live = useEntityRecord(entity, keyColumnOf(objectKey), id)
   const accounts = useEntityPage(entity === 'Contact' || entity === 'Opportunity' ? 'Account' : null)
   const process = useProcess(entity === 'Opportunity' ? 'Opportunity' : null)
+
+  // What the tenant has actually declared on this kind. `EDITABLE` says a custom field *may* be
+  // declared here; this says whether one *is*, and the button needs both.
+  const schema = useSchema()
+  const declaredCount =
+    schema.data?.entities.find((candidate) => candidate.kind === entity)?.fields.length ?? 0
 
   const accountNames = useMemo(() => {
     const names = new Map<string, string>()
@@ -95,15 +152,15 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
 
   if (entity !== null && live.isPending) {
     return (
-      <Page>
+      <>
         <Skeleton rows={8} />
-      </Page>
+      </>
     )
   }
 
   if (!record) {
     return (
-      <Page>
+      <>
         <EmptyState
           title={`No ${model.label.toLowerCase()} with the id ${id}`}
           detail="It may have been deleted, or the link may be from another tenant."
@@ -116,7 +173,7 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
             </Button>
           }
         />
-      </Page>
+      </>
     )
   }
 
@@ -137,29 +194,48 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
   const related = relatedLinksOf(model.key)
 
   return (
-    <Page layout="full">
-      <header className={styles.header}>
+    <>
+      <header className={`${styles.header} ${density === 'peek' ? styles.headerPeek : ''}`}>
         <div className={styles.identity}>
-          <div className={styles.avatar} aria-hidden="true">
-            {model.mono}
-          </div>
-          <div>
-            <div className={styles.eyebrow}>
-              {model.label} · {record.id}
-            </div>
-            <h1 className={styles.title}>{String(record[titleField] ?? record.id)}</h1>
-          </div>
+          {identity ? (
+            <>
+              <div className={styles.avatar} aria-hidden="true">
+                {model.mono}
+              </div>
+              <div>
+                <div className={styles.eyebrow}>
+                  {model.label} · {record.id}
+                </div>
+                <h1 className={styles.title}>{String(record[titleField] ?? record.id)}</h1>
+              </div>
+            </>
+          ) : null}
           <div className={styles.actions}>
             {/*
               Only the four kinds a custom field can be declared on, and only for a live record.
               Everything else has nothing this build can write.
             */}
+            {/*
+              DISABLED WITH THE REASON, rather than opening a drawer that has nothing in it. The
+              button used to be offered whenever the kind *could* carry a declared field, and on a
+              tenant that has declared none it opened a panel saying "Nothing has been declared on
+              contacts" over a Save reading "0 change(s)". A reader who presses Edit and is shown
+              an empty form does not conclude "this tenant has declared no fields" — they conclude
+              the editor is broken, and the sentence explaining otherwise arrives after the click
+              that cost them the trust.
+
+              Two reasons, because they are two different facts and only one of them is fixable by
+              the person reading it: the kind takes no declared fields at all, or this tenant has
+              not declared any yet — and the second names where to go.
+            */}
             <Button
-              disabled={!EDITABLE.includes(String(entity))}
+              disabled={!EDITABLE.includes(String(entity)) || declaredCount === 0}
               title={
-                EDITABLE.includes(String(entity))
-                  ? undefined
-                  : 'Nothing on this record is editable by this build.'
+                !EDITABLE.includes(String(entity))
+                  ? 'Nothing on this record is editable by this build.'
+                  : declaredCount === 0
+                    ? `No fields have been declared on ${model.plural.toLowerCase()}. Declare one in Setup and it becomes editable here — no deployment.`
+                    : undefined
               }
               onClick={() => setEditing(true)}
             >
@@ -215,6 +291,7 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
           </div>
         </div>
 
+        {density === 'full' ? (
         <div className={styles.highlights}>
           {model.listCols.slice(1, 5).map((name) => (
             <div key={name}>
@@ -225,6 +302,7 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
             </div>
           ))}
         </div>
+        ) : null}
 
         {/*
           THE PATH IS A DISPLAY, AND IT USED TO BE MADE OF BUTTONS. Nine `<button>` elements with
@@ -238,7 +316,7 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
           the seeded definition by coincidence of naming; a tenant that renamed a stage saw its
           deal in none of them.
         */}
-        {path.length > 0 ? (
+        {path.length > 0 && density === 'full' ? (
           <ol className={styles.path} aria-label={`${model.label} path`}>
             {path.map((step, index) => (
               <li
@@ -364,6 +442,6 @@ export function RecordScreen({ objectKey, id }: { objectKey: string; id: string 
           onClose={() => setEditing(false)}
         />
       ) : null}
-    </Page>
+    </>
   )
 }

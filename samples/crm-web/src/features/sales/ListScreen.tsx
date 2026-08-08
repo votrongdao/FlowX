@@ -6,11 +6,8 @@ import {
   DataTable,
   ErrorState,
   Drawer,
-  DrawerSection,
-  FieldRow,
   Page,
   PageHeader,
-  Tag,
   TextField,
 } from '@/design/primitives'
 import type { Column } from '@/design/primitives'
@@ -18,14 +15,14 @@ import { useEntityPage, useProcess, useSchema } from '@/api/queries/hooks'
 import { modelFor } from '@/fixtures/objects'
 import type { RecordRow } from '@/fixtures/objects'
 import { isNumeric, renderCell } from './RecordCell'
+import { RecordDetail } from './RecordScreen'
 import { entityOf, toRows } from './liveRecords'
-import { EditFieldsDrawer } from './EditFieldsDrawer'
+import { rememberDrawerSize, storedDrawerSize } from '@/design/primitives/drawerSize'
+import type { DrawerSize } from '@/design/primitives/drawerSize'
 import { NewLeadDrawer } from './NewLeadDrawer'
 import { NewTaskDrawer } from './NewTaskDrawer'
 import styles from './ListScreen.module.css'
 
-/** The kinds a custom field can be declared on, which is what the edit drawer writes. */
-const EDITABLE_KINDS: readonly string[] = ['Lead', 'Account', 'Contact', 'Opportunity']
 
 /**
  * Why the other objects have no New button.
@@ -61,7 +58,15 @@ export function ListScreen({ objectKey }: { objectKey: string }) {
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState<string>('all')
   const [peek, setPeek] = useState<RecordRow | null>(null)
-  const [editing, setEditing] = useState<RecordRow | null>(null)
+
+  // The size outlives the peek: closing one record and opening the next keeps the width the
+  // reader chose, which is the whole reason it is remembered rather than reset per record.
+  const [size, setSizeState] = useState<DrawerSize>(storedDrawerSize)
+
+  const setSize = (next: DrawerSize) => {
+    setSizeState(next)
+    rememberDrawerSize(next)
+  }
   const [hidden, setHidden] = useState<readonly string[]>([])
   const [showColumns, setShowColumns] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -319,74 +324,41 @@ export function ListScreen({ objectKey }: { objectKey: string }) {
 
       {peek ? (
         <Drawer
-          eyebrow={peek.id}
+          eyebrow={`${model.label} · ${peek.id}`}
           title={String(peek[model.listCols[0] ?? 'name'] ?? peek.id)}
-          subtitle={model.label}
+          size={size}
+          onSizeChange={setSize}
           onClose={() => setPeek(null)}
           actions={
-            <>
-              <Button
-                tone="primary"
-                onClick={() =>
-                  void navigate({
-                    to: '/records/$object/$id',
-                    params: { object: model.key, id: peek.id },
-                  })
-                }
-              >
-                Open record
-              </Button>
-              {/*
-                The same drawer the record page opens, and only for the four kinds a custom field
-                can be declared on. It did nothing at all before, which is the one outcome a
-                reader cannot tell from a slow one.
-              */}
-              <Button
-                disabled={!EDITABLE_KINDS.includes(String(entity))}
-                title={
-                  EDITABLE_KINDS.includes(String(entity))
-                    ? undefined
-                    : 'Nothing on this kind of record is editable by this build.'
-                }
-                onClick={() => {
-                  setEditing(peek)
-                  setPeek(null)
-                }}
-              >
-                Edit
-              </Button>
-            </>
+            <Button
+              tone="primary"
+              onClick={() =>
+                void navigate({
+                  to: '/records/$object/$id',
+                  params: { object: model.key, id: peek.id },
+                })
+              }
+            >
+              Open as page
+            </Button>
           }
         >
-          <DrawerSection label="Details" note="as configured on the page layout" />
-          {model.fields.map((field) => (
-            <FieldRow key={field.name} label={field.label}>
-              {renderCell(model, peek, field.name)}
-            </FieldRow>
-          ))}
-          {model.stageField ? (
-            <>
-              <DrawerSection label="Stage" />
-              <div className={styles.peekStages}>
-                {stages.map((option) => (
-                  <Tag key={option} tone={peek[model.stageField as string] === option ? 'accent' : 'outline'}>
-                    {option}
-                  </Tag>
-                ))}
-              </div>
-            </>
-          ) : null}
+          {/*
+            THE PEEK IS THE RECORD PAGE, at a density. It used to be a second rendering — the
+            fields off the model in one flat list, a stage strip made of tags, and its own Edit
+            button — which is two places to add a field to and one of them gets forgotten. It also
+            showed the *row* the list had already fetched rather than the record, so a column the
+            list does not select was simply missing from the peek with nothing saying so.
+          */}
+          <RecordDetail
+            objectKey={objectKey}
+            id={peek.id}
+            density={size === 'peek' ? 'peek' : 'full'}
+            identity={false}
+          />
         </Drawer>
       ) : null}
 
-      {editing !== null && entity !== null ? (
-        <EditFieldsDrawer
-          kind={entity as 'Lead' | 'Account' | 'Contact' | 'Opportunity'}
-          id={editing.id}
-          title={String(editing[model.listCols[0] ?? 'name'] ?? editing.id)}
-          onClose={() => setEditing(null)}
-        />
-      ) : null}
     </Page>
   )
 }

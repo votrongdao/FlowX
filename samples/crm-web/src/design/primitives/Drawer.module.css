@@ -1,10 +1,15 @@
 .scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 30;
   display: flex;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.18);
+}
+
+/* Nothing behind a full-width panel is visible, so there is nothing for the scrim to dim. */
+.scrim:has(.full) {
+  background: transparent;
 }
 
 .panel {
@@ -101,4 +106,33 @@
   font-size: 19px;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+/*
+ * The three sizes.
+ *
+ * Widths in `min()` against the viewport so a narrow laptop gets the whole screen rather than a
+ * panel wider than the window with its close button off the edge. `full` drops the scrim's
+ * darkening and the panel's shadow: at full width there is nothing behind to dim, and a shadow
+ * cast by an edge that is the screen edge reads as a rendering fault.
+ */
+.peek {
+  width: var(--drawer-width, 452px);
+}
+
+.wide {
+  width: min(920px, 100%);
+}
+
+.full {
+  width: 100%;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.headControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }

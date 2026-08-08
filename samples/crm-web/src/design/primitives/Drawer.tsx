@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
+import { narrow, widen } from './drawerSize'
+import type { DrawerSize } from './drawerSize'
 import styles from './Drawer.module.css'
 
 export interface DrawerProps {
@@ -14,6 +17,13 @@ export interface DrawerProps {
   actions?: ReactNode
   onClose: () => void
   width?: number
+  /**
+   * How much of the screen it takes. Omit it and the drawer is the strip it always was — the
+   * forms that open one are the size of their fields and have nothing to widen into.
+   */
+  size?: DrawerSize
+  /** Supplied with {@link size} to offer the widen and narrow controls. */
+  onSizeChange?: (size: DrawerSize) => void
   children: ReactNode
 }
 
@@ -24,7 +34,17 @@ export interface DrawerProps {
  * keyboard user opens and then cannot leave; both are a handful of lines and both are the first
  * things reported when this pattern ships without them.
  */
-export function Drawer({ title, eyebrow, subtitle, actions, onClose, width, children }: DrawerProps) {
+export function Drawer({
+  title,
+  eyebrow,
+  subtitle,
+  actions,
+  onClose,
+  width,
+  size,
+  onSizeChange,
+  children,
+}: DrawerProps) {
   const panel = useRef<HTMLDivElement>(null)
   const opener = useRef<Element | null>(null)
 
@@ -33,7 +53,17 @@ export function Drawer({ title, eyebrow, subtitle, actions, onClose, width, chil
     panel.current?.focus()
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape') return
+
+      // Escape steps back down through the sizes before it closes. A reader who went full screen
+      // and pressed Escape meant "give me the page back", not "throw away what I was reading" —
+      // and the second is not undoable, because the peek does not remember which record it held.
+      if (size && onSizeChange && size !== 'peek') {
+        onSizeChange(narrow(size))
+        return
+      }
+
+      onClose()
     }
 
     document.addEventListener('keydown', onKeyDown)
@@ -46,7 +76,15 @@ export function Drawer({ title, eyebrow, subtitle, actions, onClose, width, chil
     }
   }, [onClose])
 
-  return (
+  /*
+   * PORTALLED TO THE DOCUMENT, so a drawer opened from inside a drawer covers the window rather
+   * than the panel it was opened from. That became reachable when the list's peek started drawing
+   * `RecordDetail`, which has an Edit of its own: rendered in place, the edit panel was laid out
+   * inside the peek and clipped by it, which reads as a broken control rather than a nested one.
+   * `.shell` is the only positioned ancestor and it fills the window, so `fixed` covers the same
+   * rectangle `absolute` did — this moves no pixels for the nine drawers that were already fine.
+   */
+  return createPortal(
     <div
       className={styles.scrim}
       onClick={(event) => {
@@ -59,21 +97,54 @@ export function Drawer({ title, eyebrow, subtitle, actions, onClose, width, chil
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         tabIndex={-1}
-        className={styles.panel}
-        style={width ? ({ '--drawer-width': `${width}px` } as React.CSSProperties) : undefined}
+        className={`${styles.panel} ${size ? (styles[size] ?? '') : ''}`}
+        style={
+          width && (size ?? 'peek') === 'peek'
+            ? ({ '--drawer-width': `${width}px` } as React.CSSProperties)
+            : undefined
+        }
       >
         <header className={styles.head}>
           <div className={styles.headTop}>
             {eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}
-            <Button
-              iconOnly
-              size="sm"
-              aria-label="Close"
-              className={styles.close}
-              onClick={onClose}
-            >
-              ✕
-            </Button>
+            <div className={styles.headControls}>
+              {size && onSizeChange ? (
+                <>
+                  {/*
+                    Two buttons rather than one toggle. A single "expand" that cycles peek → wide →
+                    full → peek is one click away from the size you wanted and three from the one
+                    you left, and a reader cannot tell which way it will go before pressing it.
+                  */}
+                  <Button
+                    iconOnly
+                    size="sm"
+                    aria-label="Narrow"
+                    disabled={size === 'peek'}
+                    onClick={() => onSizeChange(narrow(size))}
+                  >
+                    ›
+                  </Button>
+                  <Button
+                    iconOnly
+                    size="sm"
+                    aria-label="Widen"
+                    disabled={size === 'full'}
+                    onClick={() => onSizeChange(widen(size))}
+                  >
+                    ‹
+                  </Button>
+                </>
+              ) : null}
+              <Button
+                iconOnly
+                size="sm"
+                aria-label="Close"
+                className={styles.close}
+                onClick={onClose}
+              >
+                ✕
+              </Button>
+            </div>
           </div>
           <div className={styles.title}>{title}</div>
           {subtitle ? <div className={styles.subtitle}>{subtitle}</div> : null}
@@ -81,7 +152,8 @@ export function Drawer({ title, eyebrow, subtitle, actions, onClose, width, chil
         </header>
         <div className={styles.body}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
