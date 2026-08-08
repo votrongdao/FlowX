@@ -22,6 +22,51 @@ import type { RecordView } from '@/api/contracts'
  * carry means a stage an administrator added appears the moment a deal enters it.
  */
 
+/**
+ * A `Date`'s calendar day where the person is, as `YYYY-MM-DD`.
+ *
+ * `toISOString().slice(0, 10)` is the obvious way to write this and it is wrong everywhere east
+ * of Greenwich: `new Date(2026, 9, 1)` is local midnight on 1 October, which in UTC+07 is
+ * 2026-09-30T17:00Z, so the string comes back a day early. The boundaries here are compared
+ * against `close_date`, which the server sends as a plain calendar date with no zone at all, so
+ * the comparison has to be made in the same terms.
+ *
+ * The visible symptom was the whole point of this function: with the quarter ending a day early,
+ * an opportunity closing on the last day of the quarter fell outside "this quarter" — the default
+ * filter on the first screen of the application — and every reader in Asia, Australia or eastern
+ * Europe was shown an empty pipeline where a reader in London was shown a full one.
+ */
+function localDay(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+export interface HorizonBounds {
+  /** The local calendar day, as the server writes `close_date`. */
+  today: string
+  /** Exclusive: the first day of next month. */
+  monthEnd: string
+  /** Exclusive: the first day of the next quarter. */
+  quarterEnd: string
+}
+
+/**
+ * The two boundaries the horizon filter compares against, plus today.
+ *
+ * Exported and taking `now` as an argument so the boundaries can be tested at a timezone and a
+ * date, which is the only way to pin behaviour that was correct in one hemisphere of offsets and
+ * wrong in the other. `useConsole` passes the real clock.
+ */
+export function horizonBounds(now: Date): HorizonBounds {
+  return {
+    today: localDay(now),
+    monthEnd: localDay(new Date(now.getFullYear(), now.getMonth() + 1, 1)),
+    quarterEnd: localDay(new Date(now.getFullYear(), (Math.floor(now.getMonth() / 3) + 1) * 3, 1)),
+  }
+}
+
 export type OwnerFilter = 'mine' | 'all'
 export type HorizonFilter = 'quarter' | 'month' | 'open'
 export type OutcomeFilter = 'all' | 'open' | 'Won' | 'Lost'
@@ -95,13 +140,7 @@ export function useConsole(): ConsoleModel {
     // Boundaries from today rather than from a date this file was written on. The fixtures had a
     // hard-coded "today" so their dates read as this quarter; live rows are dated whenever the
     // tenant made them, and a fixed reference would call every one of them historic.
-    const now = new Date()
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10)
-    const quarterEnd = new Date(
-      now.getFullYear(),
-      (Math.floor(now.getMonth() / 3) + 1) * 3,
-      1,
-    ).toISOString().slice(0, 10)
+    const { today, monthEnd, quarterEnd } = horizonBounds(new Date())
 
     const inScope = all.filter((deal) => {
       // "Mine" is answerable and "my team's" is not: an opportunity carries an owner uuid and the
@@ -142,8 +181,7 @@ export function useConsole(): ConsoleModel {
       won,
       totals: [...byStage.values()],
       closingThisMonth: open.filter(
-        (deal) => (deal.closeDate ?? '') >= now.toISOString().slice(0, 10)
-          && (deal.closeDate ?? '') < monthEnd,
+        (deal) => (deal.closeDate ?? '') >= today && (deal.closeDate ?? '') < monthEnd,
       ),
     }
   }, [all, filters, ownerId])
