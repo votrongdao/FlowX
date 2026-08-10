@@ -38,6 +38,20 @@ opportunities and leads. Each item carries an alias, the row's id is derived fro
 applying the same file again therefore writes nothing: `samples/crm/seed/northwind.json` is the
 one compose mounts.
 
+**And it refuses to run in a Production environment unless you say you meant it.** There is no
+`launchSettings.json` here, so `dotnet run` starts in Production, and `CRM_SEED_FILE` alone then
+throws at start-up rather than writing rows that would be indistinguishable from real ones. Say
+which you mean:
+
+```bash
+CRM_SEED_FILE=samples/crm/seed/northwind.json CRM_SEED_ALLOW_PRODUCTION=true dotnet run   # or
+CRM_SEED_FILE=samples/crm/seed/northwind.json DOTNET_ENVIRONMENT=Development dotnet run
+```
+
+The seeder logs one line per tenant — `Seeded tenant crm-northwind … N written, M already there.`
+A healthy `/health` does **not** imply the seed landed; the browser suite in `.github/workflows/ci.yml`
+spent thirty minutes discovering that before it started checking for that line.
+
 ## What it is
 
 Sixty-four tables, eighty-three flows and three authorisation stances, over the entities a CRM actually

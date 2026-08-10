@@ -5,13 +5,22 @@ application whose data layer is the CRM's own API — twenty-two of its screens 
 real backend, and the rest render from the object model rather than from screen-specific mock-ups.
 
 ```bash
-# The backend, on the port the dev server proxies to.
-FLOWX_POSTGRES_CONNECTION="Host=localhost;Port=5432;Database=postgres;Username=postgres" \
+# The backend, on the port the dev server proxies to. CRM_SEED_FILE is what puts rows in
+# the tenant; without it every screen renders an empty organisation. See samples/crm/README.md
+# for why CRM_SEED_ALLOW_PRODUCTION is needed alongside it.
+FLOWX_POSTGRES_CONNECTION="Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres" \
+  CRM_SEED_FILE=samples/crm/seed/northwind.json CRM_SEED_ALLOW_PRODUCTION=true \
   dotnet run --project samples/crm
 
 # The client.
 cd samples/crm-web && npm install && npm run dev     # http://localhost:5173
 ```
+
+**If the page never answers, name the interface.** Vite's default host is `localhost`, and it
+binds to whatever that resolves to first — IPv4 on most machines, `::1` on some. On a host where
+it picks IPv6, `npm run dev` prints `ready in 242 ms` while nothing at all is listening on
+`127.0.0.1:5173`. `npm run dev -- --host 127.0.0.1` settles it; CI passes that flag for exactly
+this reason.
 
 `vite.config.ts` proxies `/api` to `http://localhost:5000` (override with `CRM_API`), so the
 browser treats the API as same-origin. That is deliberate: the CORS policy in `Program.cs` is what
@@ -85,8 +94,16 @@ npm run build
 And the browser suite, which needs a client, an API and a seeded database to point at:
 
 ```bash
-CRM_E2E_BASE_URL=http://localhost:5173 npm run test:e2e
+CRM_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e
+
+# On a machine that already carries a Chromium — a container image, usually — point at it
+# rather than letting Playwright fetch one whose revision it happens to prefer.
+CRM_E2E_BASE_URL=http://127.0.0.1:5173 CRM_E2E_CHROMIUM=/opt/pw-browsers/chromium npm run test:e2e
 ```
+
+**Seeded** is load-bearing in that sentence. Against an empty tenant this suite does not fail
+fast: forty of its sixty-five tests wait ninety seconds each for a deal, a quote or a process
+that was never written, and the ones that pass are the ones about an empty organisation.
 
 It walks one path per role — the seller from an opportunity to a refused order, the manager
 through the inbox and the discount, the director through the reporting line and a KPI review —
