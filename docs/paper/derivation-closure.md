@@ -23,7 +23,7 @@ to grow, and a set of build-failing fitness functions that enforce both. The com
 the contribution; each part has partial prior art, and §7 says exactly which.
 
 We report three years' worth of nothing — this is a single-system, single-team study over
-**68 architecture decision records**, **7 transport adapters** and **81 executable fitness
+**68 architecture decision records**, **7 transport adapters** and **84 executable fitness
 functions** — and we report it honestly, including the parts where the approach lost. The
 headline cost is that compile-time derivation makes builds **+67.1 % slower at 200 flows
 (95 % CI [+61.9, +73.6]) against a +8 % budget: a stated, unmet, non-negotiated FAIL.**
@@ -31,7 +31,7 @@ Closure is also not uniform: three records document surfaces where the rule coul
 held and says so at the point of failure rather than in a footnote.
 
 The transferable results are: (i) the admission rule demonstrably refuses fields, and we
-show the record where it did; (ii) **12 of 75 published schema field paths still have no
+show the record where it did; (ii) **11 of 75 published schema field paths still have no
 producer**, which is the debt the rule was invented to stop accruing and the measurement of
 how much accrued before it existed; and (iii) on a shared CI runner, a build-cost gate must
 measure **bytes allocated, not wall clock** — twelve identical runs of one tree disagreed on
@@ -98,7 +98,7 @@ And neither rule survives being a convention:
 3. Quantified cost, negative: **+67.1 %** build overhead against a **+8 %** budget (§5.3),
    and the measurement-methodology finding that makes such a gate possible on shared CI at
    all (§5.5).
-4. The debt measurement: **12 of 75** field paths in a published contract schema have no
+4. The debt measurement: **11 of 75** field paths in a published contract schema have no
    producer, and we show why a consumer cannot distinguish "this application has no owner"
    from "the compiler never looked" (§5.2).
 
@@ -134,7 +134,7 @@ producer, and that both prohibitions are tested.
 The distinction is observable. A project that merely emits a manifest accumulates fields
 faster than producers, because a field is cheap to declare and a producer is expensive to
 write. We can measure exactly how fast, because our own schema was written before D2 was:
-**12 of 75 field paths are still unproduced** (§5.2). D2 is the rule that stopped the
+**11 of 75 field paths are still unproduced** (§5.2). D2 is the rule that stopped the
 thirteenth, and §5.2 shows the record where it did.
 
 ---
@@ -264,7 +264,7 @@ here in the same commit as the producer.
 |---|---|
 | Architecture decision records | 68 (66 Accepted, 1 Proposed, 1 template) |
 | ADRs carrying a `Revisit when` clause | 68 / 68 |
-| Executable fitness functions | 81 declared, 99 cases with theories expanded |
+| Executable fitness functions | 84 declared, 101 cases with theories expanded |
 | Compiler diagnostic identifiers | 47 |
 | Transport / infrastructure adapters | 7 |
 | Published schema field paths | 75 |
@@ -301,7 +301,7 @@ this as the strongest available evidence that D2 is load-bearing: a rule that ha
 produced a refusal is indistinguishable from a rule nobody applies.
 
 **And the counterfactual is measured, because it is our own history.** The schema was
-written before D2, and **12 of its 75 field paths have no producer**. They fall into three
+written before D2, and **11 of its 75 field paths have no producer**. They fall into three
 kinds:
 
 * *the fact is not declared anywhere* — ownership, deprecation, partition keys: the DSL has
@@ -311,8 +311,12 @@ kinds:
 * *the fact requires machinery that does not exist* — per-type JSON Schema, which is what
   the OpenAPI, AsyncAPI and agent-tool descriptors would be generated from.
 
-One of the thirteen closed during this period, and the way it closed is the argument for
-D2's clause (b). An authorization field was published with the *mode* but not the *value*:
+Two of the original thirteen closed during this period, and the way each closed is the
+argument for D2's clause (b). The second was `event.producedBy`: the compiler already walked
+every `Emit` step of every flow to build the event catalogue and then discarded which flow
+each one came from, so the producer cost a second pass over a list already in hand — and it
+shipped in the same commit as the rule that classifies a change to it. The first is the one
+worth dwelling on. An authorization field was published with the *mode* but not the *value*:
 the sample application declared a permission, and the compiler dropped it between reading
 the declaration and writing the graph. The consequence was not merely a thin document — it
 was that a breaking-change rule *could not fire*, because half of what it compared was
@@ -446,7 +450,7 @@ capable of failing, and that the failures cluster where transports have opinions
 
 **Conclusion validity.** We report a decision record that declines to add a field as
 evidence the admission rule bites. A skeptic can reasonably say we could have written that
-record either way. The counter-evidence is the 12 unproduced fields: before the rule existed,
+record either way. The counter-evidence is the 11 unproduced fields: before the rule existed,
 the same team added fields it never produced, repeatedly. The rule changed the outcome for
 the same team on the same schema.
 
@@ -547,7 +551,7 @@ phases here.
 | 7 adapters | `ls plugins/` |
 | 75 schema field paths | walk every `properties` block of `schemas/flowx.manifest.schema.json` |
 | 39 classification rules (22/9/8) | `rg -o 'DiffSeverity\.\w+' src/FlowX.Cli/Diffing/ManifestDiff.cs \| sort \| uniq -c` |
-| 12 unproduced field paths | `docs/adr/ADR-0017-manifest-v1-freeze-criteria.md` §1, table F1 |
+| 11 unproduced field paths | `docs/adr/ADR-0017-manifest-v1-freeze-criteria.md` §1, table F1, less `event.producedBy` and `capability.authorization.value`, both since closed with their classifiers |
 | The refusal record | `docs/adr/ADR-0039-a-bus-subscription-publishes-no-new-manifest-field.md` |
 | The field that closed, and the rule it had disabled | ADR-0017 §1 (struck row) |
 | +67.1 % [61.9, 73.6] at 200 flows; +46.5 % [42.4, 51.0] at 50; A/A 10.6 % | `docs/benchmarks/B12-scale.md` §5.4 |
