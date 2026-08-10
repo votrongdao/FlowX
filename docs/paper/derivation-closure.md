@@ -23,7 +23,7 @@ to grow, and a set of build-failing fitness functions that enforce both. The com
 the contribution; each part has partial prior art, and §7 says exactly which.
 
 We report three years' worth of nothing — this is a single-system, single-team study over
-**68 architecture decision records**, **7 transport adapters** and **84 executable fitness
+**68 architecture decision records**, **7 transport adapters** and **88 executable fitness
 functions** — and we report it honestly, including the parts where the approach lost. The
 headline cost is that compile-time derivation makes builds **+67.1 % slower at 200 flows
 (95 % CI [+61.9, +73.6]) against a +8 % budget: a stated, unmet, non-negotiated FAIL.**
@@ -250,8 +250,8 @@ alternative, skipping the unresolvable case at run time, produces a system where
 is silently less true than it appears, which is D1 failing quietly.
 
 **The classifier ships with the field.** Compatibility classification is a pure function
-over two graph documents producing a report; it currently carries **39 classification
-rules — 22 breaking, 9 additive, 8 neutral**. D2's clause (b) is satisfied by adding a rule
+over two graph documents producing a report; it currently carries **40 classification
+rules — 22 breaking, 9 additive, 9 neutral**. D2's clause (b) is satisfied by adding a rule
 here in the same commit as the producer.
 
 ---
@@ -262,13 +262,13 @@ here in the same commit as the producer.
 
 | Measure | Value |
 |---|---|
-| Architecture decision records | 68 (66 Accepted, 1 Proposed, 1 template) |
+| Architecture decision records | 68 (67 Accepted, 1 Proposed) |
 | ADRs carrying a `Revisit when` clause | 68 / 68 |
-| Executable fitness functions | 84 declared, 101 cases with theories expanded |
+| Executable fitness functions | 88 declared |
 | Compiler diagnostic identifiers | 47 |
 | Transport / infrastructure adapters | 7 |
 | Published schema field paths | 75 |
-| Compatibility classification rules | 39 (22 breaking, 9 additive, 8 neutral) |
+| Compatibility classification rules | 40 (22 breaking, 9 additive, 9 neutral) |
 
 This is one system built by one team. §6 is explicit about what that does and does not
 support.
@@ -570,13 +570,13 @@ phases here.
 | Claim | Source |
 |---|---|
 | 68 ADRs | `ls docs/adr/ADR-*.md \| wc -l` |
-| 66 Accepted / 1 Proposed / 1 template | `rg -n '^\*\*Status:\*\*' docs/adr/*.md --no-filename \| sort \| uniq -c` |
+| 67 Accepted / 1 Proposed | `PaperClaimTests`; note one record states its status inside a blockquote, so an anchored `^\*\*Status` grep undercounts by one |
 | 68 / 68 with `Revisit when` | `rg -l 'Revisit when' docs/adr/ADR-*.md \| wc -l` |
-| 81 fitness functions / 99 cases | `rg -c '\[Fact\]\|\[Theory\]' tests/FlowX.Architecture.Tests/*.cs --no-filename \| paste -sd+ \| bc`; case count from `dotnet test tests/FlowX.Architecture.Tests -c Release` |
+| 88 fitness functions | `rg -c '\[Fact\]\|\[Theory\]' tests/FlowX.Architecture.Tests/*.cs --no-filename \| paste -sd+ \| bc`; case count from `dotnet test tests/FlowX.Architecture.Tests -c Release` |
 | 47 diagnostic identifiers | `rg -o '"FLOWX1[0-9]{3}"' src/FlowX.Compiler \| cut -d: -f2 \| sort -u \| wc -l` |
 | 7 adapters | `ls plugins/` |
 | 75 schema field paths | walk every `properties` block of `schemas/flowx.manifest.schema.json` |
-| 39 classification rules (22/9/8) | `rg -o 'DiffSeverity\.\w+' src/FlowX.Cli/Diffing/ManifestDiff.cs \| sort \| uniq -c` |
+| 40 classification rules (22/9/9) | `rg -o 'DiffSeverity\.\w+' src/FlowX.Cli/Diffing/ManifestDiff.cs \| sort \| uniq -c` |
 | 20 unproduced field paths of 80 declared | `schemas/unproduced-fields.json`, asserted against the schema and every emitted manifest by `ManifestProducerTests` |
 | The refusal record | `docs/adr/ADR-0039-a-bus-subscription-publishes-no-new-manifest-field.md` |
 | The field that closed, and the rule it had disabled | ADR-0017 §1 (struck row) |
