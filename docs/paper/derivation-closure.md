@@ -23,7 +23,7 @@ to grow, and a set of build-failing fitness functions that enforce both. The com
 the contribution; each part has partial prior art, and §7 says exactly which.
 
 We report three years' worth of nothing — this is a single-system, single-team study over
-**68 architecture decision records**, **7 transport adapters** and **79 executable fitness
+**68 architecture decision records**, **7 transport adapters** and **81 executable fitness
 functions** — and we report it honestly, including the parts where the approach lost. The
 headline cost is that compile-time derivation makes builds **+67.1 % slower at 200 flows
 (95 % CI [+61.9, +73.6]) against a +8 % budget: a stated, unmet, non-negotiated FAIL.**
