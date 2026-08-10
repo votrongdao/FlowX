@@ -420,6 +420,23 @@ magnitude larger than the noise in the allocation metric. The gate now blocks on
 at a +2 % threshold, and reprints the (still failing) wall-clock budget on every run so that
 a green relative gate cannot be misread as a met budget.
 
+**The replacement then caught its author.** Closing `event.producedBy` (§5.2) was
+implemented the obvious way — for each event, ask which flows emit it — and the gate blocked
+it at **+3.30 %**, attributed by a control run to that change alone. Rewritten as one pass
+building a producer index, the same field costs **+0.40 %**, and the residual is the
+characters the field adds to the emitted document, which the gate reports separately as an
+advisory. We report this because a gate that has only ever caught other people's regressions
+is a weaker claim than one that caught the change being written to demonstrate it.
+
+**And one attempted optimization measured as nothing, so it was not shipped.** The
+error-catalogue reader calls `Compilation.GetSemanticModel` once per followed symbol, and a
+fresh model caches no bound nodes — textbook Roslyn waste. Caching one model per syntax tree
+per scan measured **+0.16 %** against its own control, inside the noise floor: in a corpus
+where each capability sits in its own file, the reader rarely follows across trees, so the
+cache had nothing to reuse. The change was dropped. An optimization that cannot be
+distinguished from noise is a change with a cost and no benefit, and the discipline that
+makes the rest of these numbers worth reading is the one that deletes it.
+
 The lesson generalizes past this project: **on shared or virtualized CI, prefer a
 deterministic proxy metric with a demonstrated noise floor over the metric you actually care
 about, and state the substitution in the gate's own output.** The substitution is only
