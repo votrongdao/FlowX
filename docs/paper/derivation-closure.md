@@ -31,9 +31,10 @@ Closure is also not uniform: three records document surfaces where the rule coul
 held and says so at the point of failure rather than in a footnote.
 
 The transferable results are: (i) the admission rule demonstrably refuses fields, and we
-show the record where it did; (ii) **11 of 75 published schema field paths still have no
-producer**, which is the debt the rule was invented to stop accruing and the measurement of
-how much accrued before it existed; and (iii) on a shared CI runner, a build-cost gate must
+show the record where it did; (ii) **20 of 80 published schema field paths have no
+producer** — the debt the rule was invented to stop accruing, and larger than the project's
+own hand audit had recorded, which is the argument for computing such a set rather than
+maintaining it; and (iii) on a shared CI runner, a build-cost gate must
 measure **bytes allocated, not wall clock** — twelve identical runs of one tree disagreed on
 wall clock by **139 %** while allocation moved by **0.069 %**.
 
@@ -98,9 +99,9 @@ And neither rule survives being a convention:
 3. Quantified cost, negative: **+67.1 %** build overhead against a **+8 %** budget (§5.3),
    and the measurement-methodology finding that makes such a gate possible on shared CI at
    all (§5.5).
-4. The debt measurement: **11 of 75** field paths in a published contract schema have no
-   producer, and we show why a consumer cannot distinguish "this application has no owner"
-   from "the compiler never looked" (§5.2).
+4. The debt measurement, made executable: **20 of 80** field paths in a published contract
+   schema have no producer, computed by a build-failing gate rather than by audit — and the
+   audit it replaces had missed 8 of them (§5.2).
 
 ---
 
@@ -134,8 +135,7 @@ producer, and that both prohibitions are tested.
 The distinction is observable. A project that merely emits a manifest accumulates fields
 faster than producers, because a field is cheap to declare and a producer is expensive to
 write. We can measure exactly how fast, because our own schema was written before D2 was:
-**11 of 75 field paths are still unproduced** (§5.2). D2 is the rule that stopped the
-thirteenth, and §5.2 shows the record where it did.
+**20 of 80 field paths are unproduced** (§5.2). D2 is the rule that stopped the next one, and §5.2 shows the record where it did.
 
 ---
 
@@ -301,8 +301,17 @@ this as the strongest available evidence that D2 is load-bearing: a rule that ha
 produced a refusal is indistinguishable from a rule nobody applies.
 
 **And the counterfactual is measured, because it is our own history.** The schema was
-written before D2, and **11 of its 75 field paths have no producer**. They fall into three
-kinds:
+written before D2, and **20 of its 80 field paths have no producer**. That number is itself a
+result about method: the project had audited the same question by hand and recorded thirteen,
+and the audit was wrong in the direction audits are always wrong — it compared field *names*
+against the names the writer emits, so it missed the entire top-level `policies` catalogue,
+five paths whose leaf name is written at a different path. Replacing the audit with a set
+difference between the schema's paths and the paths present in every manifest the repository
+emits found those five, plus three more. The gate now fails the build when a field enters the
+schema without a producer and no row records why, and fails again when a row survives its own
+field being closed, so the set can shrink and cannot silently grow.
+
+The debt falls into three kinds:
 
 * *the fact is not declared anywhere* — ownership, deprecation, partition keys: the DSL has
   no way to state them, so closing the field means a language addition;
@@ -467,7 +476,7 @@ capable of failing, and that the failures cluster where transports have opinions
 
 **Conclusion validity.** We report a decision record that declines to add a field as
 evidence the admission rule bites. A skeptic can reasonably say we could have written that
-record either way. The counter-evidence is the 11 unproduced fields: before the rule existed,
+record either way. The counter-evidence is the 20 unproduced fields: before the rule existed,
 the same team added fields it never produced, repeatedly. The rule changed the outcome for
 the same team on the same schema.
 
@@ -568,7 +577,7 @@ phases here.
 | 7 adapters | `ls plugins/` |
 | 75 schema field paths | walk every `properties` block of `schemas/flowx.manifest.schema.json` |
 | 39 classification rules (22/9/8) | `rg -o 'DiffSeverity\.\w+' src/FlowX.Cli/Diffing/ManifestDiff.cs \| sort \| uniq -c` |
-| 11 unproduced field paths | `docs/adr/ADR-0017-manifest-v1-freeze-criteria.md` §1, table F1, less `event.producedBy` and `capability.authorization.value`, both since closed with their classifiers |
+| 20 unproduced field paths of 80 declared | `schemas/unproduced-fields.json`, asserted against the schema and every emitted manifest by `ManifestProducerTests` |
 | The refusal record | `docs/adr/ADR-0039-a-bus-subscription-publishes-no-new-manifest-field.md` |
 | The field that closed, and the rule it had disabled | ADR-0017 §1 (struck row) |
 | +67.1 % [61.9, 73.6] at 200 flows; +46.5 % [42.4, 51.0] at 50; A/A 10.6 % | `docs/benchmarks/B12-scale.md` §5.4 |
