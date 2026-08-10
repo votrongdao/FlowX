@@ -45,33 +45,47 @@ public sealed class PaperClaimTests
     /// mode — one classification rule was added while this suite was being written, and the
     /// count in §4 was wrong within the hour.
     /// </remarks>
+    /// <remarks>
+    /// Each row is a pattern with the figure as its one capture group, so what is pinned is the
+    /// <em>claim</em> rather than the sentence around it or the digits anywhere in the file.
+    /// The weaker spelling was written first and did not work: asserting merely that the
+    /// measured value appears somewhere in the text passes while the claim itself is wrong,
+    /// because "68" also occurs in "68 / 68" two lines down. A gate that survives the mutation
+    /// it exists to catch is decoration, and this one was, until the mutation was tried.
+    /// </remarks>
     [Theory]
-    [InlineData("architecture decision records", "68")]
-    [InlineData("records with a Revisit-when clause", "68 / 68")]
-    [InlineData("accepted records", "67")]
-    [InlineData("proposed records", "1")]
-    [InlineData("transport adapters", "7")]
-    [InlineData("compiler diagnostics", "47")]
-    [InlineData("fitness functions declared", "88")]
-    [InlineData("classification rules", "40")]
-    [InlineData("breaking rules", "22")]
-    [InlineData("additive rules", "9")]
-    [InlineData("neutral rules", "9")]
-    public void TheStatedFigureIsTheRepositorysFigure(string what, string expected)
+    [InlineData("architecture decision records", @"\*\*(\d+) architecture decision records\*\*")]
+    [InlineData("architecture decision records", @"\| Architecture decision records \| (\d+) \(")]
+    [InlineData("accepted records", @"\| Architecture decision records \| \d+ \((\d+) Accepted")]
+    [InlineData("proposed records", @"Accepted, (\d+) Proposed")]
+    [InlineData("records with a Revisit-when clause", @"\| ADRs carrying a `Revisit when` clause \| (\d+ / \d+) \|")]
+    [InlineData("transport adapters", @"\*\*(\d+) transport adapters\*\*")]
+    [InlineData("transport adapters", @"\| Transport / infrastructure adapters \| (\d+) \|")]
+    [InlineData("compiler diagnostics", @"(\d+) diagnostic identifiers are raised")]
+    [InlineData("compiler diagnostics", @"\| Compiler diagnostic identifiers \| (\d+) \|")]
+    [InlineData("fitness functions declared", @"\*\*(\d+) executable fitness\s+functions\*\*")]
+    [InlineData("fitness functions declared", @"\| Executable fitness functions \| (\d+) declared \|")]
+    [InlineData("classification rules", @"carries \*\*(\d+) classification")]
+    [InlineData("classification rules", @"\| Compatibility classification rules \| (\d+) \(")]
+    [InlineData("breaking rules", @"classification rules \| \d+ \((\d+) breaking")]
+    [InlineData("additive rules", @"\d+ breaking, (\d+) additive")]
+    [InlineData("neutral rules", @"\d+ additive, (\d+) neutral")]
+    public void TheStatedFigureIsTheRepositorysFigure(string what, string pattern)
     {
         var measured = Measure(what);
+        var match = System.Text.RegularExpressions.Regex.Match(Text(), pattern);
 
-        measured.ShouldBe(
-            expected,
-            $"The paper says {what} is {expected}; the repository says {measured}. One of the "
-            + "two moved and the other did not, which is the drift this whole paper is about.");
+        match.Success.ShouldBeTrue(
+            $"No claim about {what} matches /{pattern}/ anywhere in the paper. Either the "
+            + "sentence was rewritten past this pattern — in which case move the pattern — or "
+            + "the claim was dropped and this row should go with it. A pattern that matches "
+            + "nothing is a gate that passes on an empty document.");
 
-        Text().ShouldContain(
+        match.Groups[1].Value.ShouldBe(
             measured,
-            Case.Sensitive,
-            $"The repository yields {measured} for {what} and that figure appears nowhere in "
-            + "the paper. Either the claim was dropped and this row should go, or it was "
-            + "restated in a form no reader can check against a clone.");
+            $"The paper claims {what} is {match.Groups[1].Value}; the repository yields "
+            + $"{measured}. One of the two moved and the other did not, which is the drift "
+            + "this paper is about, arriving in the paper.");
     }
 
     /// <summary>
