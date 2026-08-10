@@ -45,6 +45,11 @@
       "patch": "paper-quotes-a-stale-figure.patch",
       "kills": "FullyQualifiedName~PaperClaimTests.TheStatedFigureIsTheRepositorysFigure",
       "why": "Adds a fitness function without updating the count the paper quotes. The paper is a second declaration of facts the tree already holds, and this is that second declaration going stale — the exact failure the paper is about, applied to itself."
+    },
+    {
+      "patch": "one-flows-second-address-moves.patch",
+      "kills": "FullyQualifiedName~AgentSurfaceTests.OneFlowWithTwoTriggersAnswersTheSameOverBoth",
+      "why": "Moves the route on a flow that carries two triggers, so its second address is no longer where the flow declares it. Deleting the attribute outright was tried first and is a FALSE RED: it is the assembly's only [HttpTrigger], so FlowXEndpoints.g.cs is not generated at all and the host stops compiling — a mutation that does not build proves nothing about the tests."
     }
   ]
 }

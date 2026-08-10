@@ -1,0 +1,13 @@
+diff --git a/tests/FlowX.Mcp.Tests/AgentToolFlows.cs b/tests/FlowX.Mcp.Tests/AgentToolFlows.cs
+index 392c3b1..7a6880a 100644
+--- a/tests/FlowX.Mcp.Tests/AgentToolFlows.cs
++++ b/tests/FlowX.Mcp.Tests/AgentToolFlows.cs
+@@ -95,7 +95,7 @@ public sealed class QuoteRoom : ICapability<QuoteRequest, Quote>
+ /// compared against a refusal instead of against a remembered status code.
+ /// </remarks>
+ [Flow("booking.book", Version = "1.0.0", Owner = "bookings")]
+-[HttpTrigger("POST", "/api/v1/bookings")]
++[HttpTrigger("POST", "/api/v1/bookings-moved")]
+ [AgentTrigger(Description = "Book a room for a number of nights and charge the card on file.")]
+ public sealed partial class BookRoomFlow : Flow<BookRoom, Booking>
+ {

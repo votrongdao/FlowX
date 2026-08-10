@@ -119,6 +119,75 @@ public sealed class AgentSurfaceTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// One flow declaring two triggers is reachable both ways and answers the same thing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is the claim the stacked attributes make, and until now only its refusal
+    /// half was tested.</strong>
+    /// <see cref="ARefusedCallReturnsTheSameStanceTheHttpPathEnforces"/> drives both surfaces
+    /// and compares two <em>rejections</em>, which a flow that refused everything would also
+    /// satisfy. What was missing is the half that says the two addresses actually run the
+    /// same flow: same input, same output, from one class carrying
+    /// <c>[HttpTrigger]</c> and <c>[AgentTrigger]</c>.
+    /// </para>
+    /// <para>
+    /// <strong>Nothing about the second address is written down anywhere.</strong> The route
+    /// comes from <c>FlowXEndpoints.g.cs</c> and the tool from <c>FlowXAgentTools.g.cs</c>,
+    /// both emitted from the same declaration in the same build — so this test is what turns
+    /// "the compiler emits two registrations" into "two callers get the same answer".
+    /// </para>
+    /// <para>
+    /// The two documents are not compared field by field on purpose: MCP wraps the output in
+    /// <c>structuredContent</c> and the HTTP path returns it bare, and asserting the wrapping
+    /// were identical would fail on a difference that is the protocols' and not the flow's.
+    /// What must agree is what the flow produced.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task OneFlowWithTwoTriggersAnswersTheSameOverBoth()
+    {
+        const string Arguments = """{"room":"R-14","nights":3,"cardNumber":"4111111111111111"}""";
+        const string Grant = "booking:write";
+
+        var (agentResponse, agentBody) = await _host.RpcAsync(
+            """{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"booking_book","arguments":"""
+            + Arguments + "}}",
+            Grant,
+            Ct);
+
+        var (httpResponse, httpBody) = await _host.PostBookingAsync(Arguments, Grant, Ct);
+
+        using (agentBody)
+        using (httpBody)
+        {
+            agentResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+            httpResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+            var agent = agentBody.RootElement.GetProperty("result");
+
+            agent.GetProperty("isError").GetBoolean().ShouldBeFalse(
+                "The agent surface refused a call the HTTP surface accepted, so the two "
+                + "addresses are not reaching the same flow.");
+
+            var overAgent = agent.GetProperty("structuredContent").GetProperty("output");
+            var overHttp = httpBody.RootElement;
+
+            overHttp.GetProperty("reference").GetString().ShouldBe(
+                overAgent.GetProperty("reference").GetString(),
+                "The same booking, asked for twice at two addresses generated from one class, "
+                + "came back with two references.");
+
+            overHttp.GetProperty("total").GetDecimal().ShouldBe(
+                overAgent.GetProperty("total").GetDecimal(),
+                "The two addresses priced the same booking differently, which means they are "
+                + "not running the same plan.");
+
+            overHttp.GetProperty("reference").GetString().ShouldBe("R-14-1");
+        }
+    }
+
+    /// <summary>
     /// A refused call answers with the flow's own refusal, and it is the one the HTTP path
     /// enforces.
     /// </summary>

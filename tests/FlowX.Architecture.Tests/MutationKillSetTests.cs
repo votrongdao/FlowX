@@ -114,8 +114,9 @@ public sealed class MutationKillSetTests
             .SourceFiles("tests")
             .SelectMany(file => File.ReadAllText(file.FullName).Split('\n'))
             .Select(line => line.Trim())
-            .Where(line => line.StartsWith("public void ", StringComparison.Ordinal))
-            .Select(line => line["public void ".Length..].Split('(')[0])
+            .Select(Declaration)
+            .Where(name => name is not null)
+            .Select(name => name!)
             .ToHashSet(StringComparer.Ordinal);
 
         declared.Count.ShouldBeGreaterThan(
@@ -134,6 +135,26 @@ public sealed class MutationKillSetTests
             + "and a `dotnet test` run that matched nothing exits non-zero — which the "
             + "quality workflow would read as the mutation having been killed: "
             + string.Join(", ", missing));
+    }
+
+    /// <summary>The name a line declares a test with, or <c>null</c> when it declares none.</summary>
+    /// <remarks>
+    /// Three spellings, because the register named an <c>async Task</c> test and the first
+    /// version of this scan looked only for <c>public void</c> — so it reported a test that
+    /// exists as missing. The same blind spot in the other direction is the failure that
+    /// matters: a filter naming a deleted async test would have been accepted.
+    /// </remarks>
+    private static string? Declaration(string line)
+    {
+        foreach (var prefix in (string[])["public void ", "public async Task ", "public Task "])
+        {
+            if (line.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return line[prefix.Length..].Split('(')[0];
+            }
+        }
+
+        return null;
     }
 
     private static List<Entry> Register()
