@@ -156,21 +156,22 @@ public sealed partial class PublishedContractTests
     /// the event catalogue.
     /// </para>
     /// <para>
-    /// <strong>Policies are not checked, and the §12 row says they should be.</strong>
-    /// The reason given here used to be "no attribute applies a policy to a step, and the
-    /// generator emits no <c>policies</c> section", and <strong>both halves are false</strong>.
-    /// <c>.WithPolicy(PolicySet)</c> attaches one, <c>FlowAnalyzer</c> reads the set well
-    /// enough to raise <c>FLOWX1014</c> and <c>FLOWX1018</c> off its contents, and
-    /// <c>ManifestWriter.WritePolicies</c> emits a <c>policies</c> array per step carrying
-    /// each policy's fixed stage.
+    /// <strong>Policies are checked now, and the reason they were not has expired.</strong>
+    /// This comment used to exempt them because "nothing in this repository declares a
+    /// policy", so a completeness check would pass vacuously — the thing
+    /// docs/21-Quality-Gates §2.4 refuses to do. That stopped being true:
+    /// six flows across five sample applications attach one with
+    /// <c>.WithPolicy(PolicySet)</c>, so the emission path runs against shipped assemblies
+    /// and there is something real to compare against.
     /// </para>
     /// <para>
-    /// What is true is narrower. <strong>Nothing in this repository declares a policy</strong>,
-    /// so the emission path has never run against a shipped assembly and a completeness check
-    /// would pass vacuously — which is the thing docs/21-Quality-Gates §2.4 refuses to do. No
-    /// policy <em>executes</em> either: <c>FlowX.Runtime</c> contains no policy engine, so a
-    /// declared <c>Retry</c> is a manifest entry and nothing more. It becomes checkable with
-    /// P4.
+    /// The check is the coarse one that the two representations can actually be held to. A
+    /// flow's IL says <em>that</em> it attaches a policy; the manifest's <c>policies</c>
+    /// array says <em>which</em> kinds and at which stage. Recovering the second from the
+    /// first would mean re-implementing <c>PolicySet</c> resolution in a test, so what is
+    /// asserted is the direction that loses information: a flow that attaches a policy has a
+    /// step carrying one in the document. That is what catches the emitter dropping the
+    /// section, which is the failure a consumer cannot detect for itself.
     /// </para>
     /// <para>
     /// <strong><c>events</c> has stopped being the same case.</strong> <c>.Emit&lt;T&gt;()</c>
@@ -211,6 +212,7 @@ public sealed partial class PublishedContractTests
             manifests++;
             problems.AddRange(Missing(assembly, declared, manifest.RootElement));
             problems.AddRange(Dangling(assembly, manifest.RootElement));
+            problems.AddRange(Unpoliced(assembly, module, manifest.RootElement));
             manifest.Dispose();
         }
 
@@ -359,6 +361,55 @@ public sealed partial class PublishedContractTests
             }
         }
     }
+
+    /// <summary>
+    /// Flows that attach a policy and whose manifest entry carries none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A policy is a safety decision — a retry ceiling, a breaker, a bulkhead — and the
+    /// manifest is where an operator, a reviewer or <c>flowx diff</c> reads which of them a
+    /// step runs under. A flow that declares one and publishes none is the worst shape this
+    /// document takes: the reader is not told the section is unavailable, they are told the
+    /// step has no policy, and those are opposite facts.
+    /// </para>
+    /// <para>
+    /// Asked of the flow type's own IL rather than of source, so it also sees the half of a
+    /// flow the generator wrote. <c>WithPolicy</c> by name because <c>IFlowBuilder</c> is the
+    /// only place it exists — <c>FlowBuilderExposesNoTransportTypes</c> holds that surface
+    /// closed, so a call by that name in a flow is that call.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<string> Unpoliced(string assembly, ModuleDefinition module, JsonElement manifest)
+    {
+        var published = Items(manifest, "flows")
+            .Where(flow => Items(flow, "steps").Exists(step => Items(step, "policies").Count > 0))
+            .Select(flow => Text(flow, "id"))
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var type in IlSurvey.AllTypes(module).Where(IsFlow).Where(AttachesAPolicy))
+        {
+            var id = Attribute(type, "FlowAttribute") is { } flow ? Id(flow) : null;
+
+            if (id is null || published.Contains(id))
+            {
+                continue;
+            }
+
+            yield return
+                $"{assembly}: flow '{id}' attaches a policy in {type.Name} and no step in its " +
+                "manifest entry carries one. A reader of the document is told the flow runs " +
+                "unpoliced, which is not what the flow says.";
+        }
+    }
+
+    private static bool AttachesAPolicy(TypeDefinition type) =>
+        type.Methods
+            .Where(static method => method.HasBody)
+            .SelectMany(static method => method.Body.Instructions)
+            .Any(static instruction =>
+                instruction.Operand is MethodReference call
+                && call.Name.Equals("WithPolicy", StringComparison.Ordinal));
 
     private static List<Contract> DeclaredContracts(ModuleDefinition module)
     {
