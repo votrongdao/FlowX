@@ -1,12 +1,12 @@
 diff --git a/src/FlowX.Compiler/Emit/ManifestWriter.cs b/src/FlowX.Compiler/Emit/ManifestWriter.cs
 --- a/src/FlowX.Compiler/Emit/ManifestWriter.cs
 +++ b/src/FlowX.Compiler/Emit/ManifestWriter.cs
-@@ -991,7 +991,7 @@
-             .OrderBy(id => id, System.StringComparer.Ordinal)
-             .ToList();
- 
--        if (producers.Count == 0)
-+        if (producers.Count <= 1)
+@@ -1020,7 +1020,7 @@
+     private static void WriteProducers(
+         JsonWriter writer, Dictionary<string, SortedSet<string>> producers, string eventType)
+     {
+-        if (!producers.TryGetValue(eventType, out var emitters) || emitters.Count == 0)
++        if (!producers.TryGetValue(eventType, out var emitters) || emitters.Count <= 1)
          {
              return;
          }

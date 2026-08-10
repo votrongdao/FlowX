@@ -117,12 +117,15 @@ public static class ManifestWriter
 
         writer.PropertyName("events");
         writer.OpenArray();
+
+        var producers = CollectProducers(ordered);
+
         foreach (var evt in CollectEvents(ordered))
         {
             writer.OpenObject();
             writer.Property("type", evt);
             writer.Property("schemaVersion", EventSchemaVersion);
-            WriteProducers(writer, ordered, evt);
+            WriteProducers(writer, producers, evt);
             writer.CloseObject();
         }
 
@@ -958,17 +961,25 @@ public static class ManifestWriter
         }
     }
 
-    /// <summary>Writes the flows that emit an event.</summary>
+    /// <summary>Maps each event to the flows that emit it, in one pass over the steps.</summary>
     /// <remarks>
     /// <para>
     /// <strong>The fact was already walked; only the writing was missing.</strong>
     /// <see cref="CollectEvents"/> reaches every <c>Emit</c> step of every flow to build the
-    /// catalogue and then discards which flow each one came from. Publishing it costs a
-    /// second pass over a list already in hand and closes one of the rows
+    /// catalogue and then discards which flow each one came from. Publishing it closes one of
+    /// the rows
     /// <a href="https://github.com/votrongdao/FlowX/blob/master/docs/adr/ADR-0017-manifest-v1-freeze-criteria.md">ADR-0017</a>
     /// tables as declared-but-never-written — and a field the schema declares and nothing
     /// writes is worse than a missing field, because absence reads as "this application has
     /// none" rather than as "nobody looked".
+    /// </para>
+    /// <para>
+    /// <strong>One pass, because the obvious spelling is quadratic.</strong> Asking
+    /// "which flows emit <em>this</em> event" per event walks every step of every flow once
+    /// per event, and a synthetic 50-flow project measured that at +3.3 % of the generator's
+    /// whole allocation budget — past the +2 % the relative gate blocks at
+    /// (<c>docs/benchmarks/generator-cost-gate.md</c>). Inverting it to one dictionary built
+    /// in a single pass costs the same walk <c>CollectEvents</c> already makes.
     /// </para>
     /// <para>
     /// <strong>Producers, not consumers.</strong> The neighbouring <c>consumedBy</c> stays
@@ -980,18 +991,36 @@ public static class ManifestWriter
     /// publishes the manifest, so this list is total by construction.
     /// </para>
     /// </remarks>
-    private static void WriteProducers(JsonWriter writer, IEnumerable<FlowModel> flows, string eventType)
+    private static Dictionary<string, SortedSet<string>> CollectProducers(IEnumerable<FlowModel> flows)
     {
-        var producers = flows
-            .Where(flow => flow.AllSteps.Any(step =>
-                step.Kind == StepKindModel.Emit
-                && string.Equals(step.EventType, eventType, System.StringComparison.Ordinal)))
-            .Select(flow => flow.FlowId)
-            .Distinct(System.StringComparer.Ordinal)
-            .OrderBy(id => id, System.StringComparer.Ordinal)
-            .ToList();
+        var producers = new Dictionary<string, SortedSet<string>>(System.StringComparer.Ordinal);
 
-        if (producers.Count == 0)
+        foreach (var flow in flows)
+        {
+            foreach (var step in flow.AllSteps)
+            {
+                if (step.Kind != StepKindModel.Emit || step.EventType == null)
+                {
+                    continue;
+                }
+
+                if (!producers.TryGetValue(step.EventType, out var emitters))
+                {
+                    emitters = new SortedSet<string>(System.StringComparer.Ordinal);
+                    producers.Add(step.EventType, emitters);
+                }
+
+                emitters.Add(flow.FlowId);
+            }
+        }
+
+        return producers;
+    }
+
+    private static void WriteProducers(
+        JsonWriter writer, Dictionary<string, SortedSet<string>> producers, string eventType)
+    {
+        if (!producers.TryGetValue(eventType, out var emitters) || emitters.Count == 0)
         {
             return;
         }
@@ -999,7 +1028,7 @@ public static class ManifestWriter
         writer.PropertyName("producedBy");
         writer.OpenArray();
 
-        foreach (var producer in producers)
+        foreach (var producer in emitters)
         {
             writer.Value(producer);
         }
