@@ -96,6 +96,28 @@ public sealed class BusTriggerAttribute(string topic) : TriggerAttribute
     /// subscribers.
     /// </summary>
     public required string Group { get; init; }
+
+    /// <summary>
+    /// A type implementing <c>ITriggerDecoder&lt;BusMessage, TIn&gt;</c>, when this flow's input
+    /// is its own contract rather than the delivery.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>What it buys is the flow being written once.</strong> A delivery can only hand
+    /// over the message, so without a decoder a bus-triggered flow must be declared
+    /// <c>Flow&lt;BusMessage, TOut&gt;</c> — and then it cannot also carry a schedule, which can
+    /// only hand over an occurrence. Naming the translation here instead of writing it as the
+    /// flow's first step lets one class serve every transport, which is what
+    /// <c>samples/event-driven</c> needed four classes for.
+    /// </para>
+    /// <para>
+    /// <strong>Omitting it is still correct</strong> and stays the right choice for a flow that
+    /// genuinely wants the delivery — one that reads headers, or routes on the event type. The
+    /// rule the compiler enforces is that the flow's input is either the payload or something a
+    /// named decoder produces from it, never a third thing nobody can supply.
+    /// </para>
+    /// </remarks>
+    public Type? Decode { get; init; }
 }
 
 /// <summary>Consumes a Kafka topic. Offsets are committed after flow completion.</summary>
