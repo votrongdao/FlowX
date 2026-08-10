@@ -348,9 +348,10 @@ to `PolicyChain`'s two rejections — and all three are errors.
 
 | [FLOWX1043](FLOWX1043.md) | Poll interval outlasts the poll's own timeout | A `PollUntil` whose first gap is longer than its budget: the instance wakes past it, so the loop is one call followed by the `OnTimeout` block — and one attempt then an escalation reads in a journal exactly like a dependency that never answered |
 | [FLOWX1044](FLOWX1044.md) | `PollUntil` requires an idempotent capability | **A second OCR job, a second charge or a second reservation on every attempt of a loop built to make tens of them** — the repetition `Idempotent = true` declares to be safe, asked of a construct that repeats after every success rather than only after a failure |
+| [FLOWX1051](FLOWX1051.md) | Trigger decoder does not produce the flow's input | **A subscription registered against a flow no delivery can start** — `Decode` is what lets four contract rules stand down, and it may only do so when the named type actually bridges the transport's payload to the flow's own input |
 | [FLOWX1050](FLOWX1050.md) | Step binds a contract only one of a poll's two endings produces | **A flow that works when the webhook fires and throws when the polling does its job** — `.OrSignal<TSignal>()` seeds the bag only on the ending a delivery caused, and both endings continue at the same step |
 
-The next is `FLOWX1051`. The range is `FLOWX1001`–`FLOWX1099`.
+The next is `FLOWX1052`. The range is `FLOWX1001`–`FLOWX1099`.
 
 > **Every id above is raised and covered by a test.** Four of them were not, until
 > WP-13: `FLOWX1014` and `FLOWX1018` ask what is in a policy set, and nothing resolved
@@ -671,7 +672,7 @@ two rules would otherwise give opposite advice. An **error**, for `FLOWX1020`'s 
 nothing probabilistic about which paths exist.
 [ADR-0066](../adr/ADR-0066-a-polls-second-ending-is-a-row.md) is the decision it belongs to.
 
-The next is `FLOWX1051`. The range is `FLOWX1001`–`FLOWX1099`.
+The next is `FLOWX1052`. The range is `FLOWX1001`–`FLOWX1099`.
 
 ## Adding a diagnostic
 

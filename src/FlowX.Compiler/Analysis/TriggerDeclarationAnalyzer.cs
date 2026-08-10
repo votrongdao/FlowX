@@ -99,6 +99,7 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
     private const string TumblingPrefix = "tumbling:";
 
     private const string BusMessageName = "FlowX.BusMessage";
+    private const string TriggerDecoderName = "FlowX.ITriggerDecoder";
 
     private const string FlowBaseName = "FlowX.Flow";
 
@@ -112,7 +113,8 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
             FlowXDiagnostics.StreamFlowCannotBeWindowed,
             FlowXDiagnostics.ScheduleJitterCannotBeRead,
             FlowXDiagnostics.StreamWindowArgumentCannotBeRead,
-            FlowXDiagnostics.TriggerInputContractsConflict);
+            FlowXDiagnostics.TriggerInputContractsConflict,
+            FlowXDiagnostics.TriggerDecoderDoesNotProduceTheInput);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -164,6 +166,15 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
                 type.Name));
         }
 
+        // Reported first and instead of everything below, for the same reason the conflict rule
+        // is: an author who named a decoder has already answered the four contract rules'
+        // question, and being told to declare the payload as the input would send them to undo
+        // the thing they were doing.
+        if (ReportUndecodableTriggers(context, type, attributes))
+        {
+            return;
+        }
+
         // Reported instead of the four below and never beside them. Each of those tells the
         // author to declare the input contract its own transport needs, and on a flow carrying
         // two of them following either message re-raises the other — so the actionable-looking
@@ -203,7 +214,7 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
         SymbolAnalysisContext context, INamedTypeSymbol type, ImmutableArray<AttributeData> attributes)
     {
         var demands = attributes
-            .Select(static a => ContractDemandedBy(a.AttributeClass?.ToDisplayString()))
+            .Select(static a => ContractStillDemandedBy(a))
             .Where(static demand => demand is not null)
             .Select(static demand => demand!)
             .Distinct()
@@ -216,16 +227,16 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
         }
 
         var reason = string.Join(", ", attributes
-            .Where(static a => ContractDemandedBy(a.AttributeClass?.ToDisplayString()) is not null)
+            .Where(static a => ContractStillDemandedBy(a) is not null)
             .Select(static a =>
                 $"[{a.AttributeClass!.Name.Replace("Attribute", string.Empty)}] needs " +
-                ContractDemandedBy(a.AttributeClass.ToDisplayString()))
+                ContractStillDemandedBy(a))
             .Distinct()
             .OrderBy(static text => text, System.StringComparer.Ordinal));
 
         foreach (var attribute in attributes)
         {
-            if (ContractDemandedBy(attribute.AttributeClass?.ToDisplayString()) is null)
+            if (ContractStillDemandedBy(attribute) is null)
             {
                 continue;
             }
@@ -257,6 +268,87 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
         StreamTriggerAttributeName => StreamWindowBatchName,
         _ => System.Array.IndexOf(BusTriggerAttributeNames, attributeName) >= 0 ? BusMessageName : null,
     };
+
+    /// <summary>
+    /// The contract a trigger still forces on the flow after its <c>Decode</c> is taken into
+    /// account, or <c>null</c> when it forces none.
+    /// </summary>
+    /// <remarks>
+    /// A named decoder <em>is</em> the answer to "what starts this flow", so a trigger carrying
+    /// one demands nothing of the class — which is what lets a bus trigger and a schedule sit on
+    /// one flow. Whether the decoder actually produces the right thing is
+    /// <see cref="ReportUndecodableTriggers"/>'s question, and it is asked separately so that a
+    /// wrong decoder is reported as a wrong decoder rather than as a conflict the author did not
+    /// write.
+    /// </remarks>
+    private static string? ContractStillDemandedBy(AttributeData attribute) =>
+        DecoderNamedBy(attribute) is not null
+            ? null
+            : ContractDemandedBy(attribute.AttributeClass?.ToDisplayString());
+
+    /// <summary>The type a trigger's <c>Decode</c> names, or <c>null</c> when it names none.</summary>
+    private static INamedTypeSymbol? DecoderNamedBy(AttributeData attribute) =>
+        attribute.NamedArguments
+            .FirstOrDefault(pair => pair.Key == "Decode")
+            .Value.Value as INamedTypeSymbol;
+
+    /// <summary>
+    /// Whether a type decodes this trigger's payload into this flow's input.
+    /// </summary>
+    /// <remarks>
+    /// Asked of the interface's type arguments rather than of the method, because a type may
+    /// implement the interface several times and only one of those implementations is the one
+    /// this declaration is claiming.
+    /// </remarks>
+    private static bool Decodes(INamedTypeSymbol decoder, string payload, ITypeSymbol input) =>
+        decoder.AllInterfaces.Any(contract =>
+            contract.ConstructedFrom.ToDisplayString().StartsWith(TriggerDecoderName, System.StringComparison.Ordinal)
+            && contract.TypeArguments.Length == 2
+            && contract.TypeArguments[0].ToDisplayString() == payload
+            && SymbolEqualityComparer.Default.Equals(contract.TypeArguments[1], input));
+
+    /// <summary>
+    /// Reports FLOWX1051 on each trigger whose <c>Decode</c> cannot produce the flow's input.
+    /// </summary>
+    /// <returns><c>true</c> when it reported, which suppresses the rules a decoder stands in for.</returns>
+    /// <remarks>
+    /// Reported before the four contract rules and instead of them, for
+    /// <see cref="ReportConflictingTriggerInputs"/>'s reason: an author who has named a decoder
+    /// has already answered those rules' question, and being told to declare the payload as the
+    /// input would send them to undo the thing they were trying to do.
+    /// </remarks>
+    private static bool ReportUndecodableTriggers(
+        SymbolAnalysisContext context, INamedTypeSymbol type, ImmutableArray<AttributeData> attributes)
+    {
+        if (InputOf(type) is not { } input)
+        {
+            return false;
+        }
+
+        var reported = false;
+
+        foreach (var attribute in attributes)
+        {
+            if (DecoderNamedBy(attribute) is not { } decoder
+                || ContractDemandedBy(attribute.AttributeClass?.ToDisplayString()) is not { } payload
+                || Decodes(decoder, payload, input))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                FlowXDiagnostics.TriggerDecoderDoesNotProduceTheInput,
+                LocationOf(attribute, type, context.CancellationToken),
+                FlowIdOf(type, attributes),
+                decoder.Name,
+                payload,
+                input.ToDisplayString()));
+
+            reported = true;
+        }
+
+        return reported;
+    }
 
     /// <summary>
     /// Reports FLOWX1045 on each <c>[CronTrigger]</c> whose <c>Jitter</c> the host would refuse.
@@ -724,7 +816,11 @@ public sealed class TriggerDeclarationAnalyzer : DiagnosticAnalyzer
     private static string? UnconsumableReason(
         INamedTypeSymbol type, ImmutableArray<AttributeData> attributes)
     {
-        if (!attributes.Any(IsBusTrigger))
+        // A subscription that names a decoder has answered this rule's question already: the
+        // delivery becomes the flow's input through the named translation, so requiring the
+        // class to declare the payload would be requiring it to undo that. Only the
+        // undecoded ones are judged here, and a decoder that cannot do the job is FLOWX1051.
+        if (!attributes.Any(a => IsBusTrigger(a) && DecoderNamedBy(a) is null))
         {
             return null;
         }

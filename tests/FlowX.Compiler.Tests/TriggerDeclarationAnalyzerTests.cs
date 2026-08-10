@@ -102,11 +102,72 @@ public sealed class TriggerDeclarationAnalyzerTests
         }
         """;
 
+    /// <summary>A durable flow taking its own contract, with a decoder to reach it.</summary>
+    /// <remarks>
+    /// The arrangement the decoder exists for: the flow is <c>Flow&lt;PlaceOrder, …&gt;</c> —
+    /// its own business contract — and the delivery becomes one through a named translation
+    /// rather than through a first step nobody else needs.
+    /// </remarks>
+    private static string DecodedFlowWith(string attributes) =>
+        Preamble + "\n\n" + $$"""
+        public sealed class ReadPlaceOrder : ITriggerDecoder<BusMessage, PlaceOrder>
+        {
+            public Result<PlaceOrder> Decode(BusMessage payload)
+                => Result.Ok(new PlaceOrder(payload.Type, 1));
+        }
+
+        [Flow("order.place", Profile = ExecutionProfile.Durable)]
+        {{attributes}}
+        public sealed partial class PlaceOrderFlow : Flow<PlaceOrder, OrderResult>
+        {
+            protected override void Define(IFlowBuilder<PlaceOrder, OrderResult> flow) => flow
+                .Step<ReserveInventory>()
+                .Return(ctx => new OrderResult("id"));
+        }
+        """;
+
     private static string[] Analyze(string source)
     {
         GeneratorHarness.CompileErrorsIn(source).ShouldBeEmpty();
 
         return GeneratorHarness.Analyze(source, new TriggerDeclarationAnalyzer());
+    }
+
+    // ------------------------------------------------- the decoder must satisfy the rule
+
+    /// <summary>
+    /// A bus trigger naming a decoder for the flow's own contract is silent.
+    /// </summary>
+    /// <remarks>
+    /// Without this, a delivery could only start a <c>Flow&lt;BusMessage, TOut&gt;</c>, so a
+    /// flow reachable over a bus could not also be reachable over a schedule — the two payloads
+    /// disagree and a class has one input type. Naming the translation on the attribute is what
+    /// lets one class carry both, and this is the rule that has to stop objecting for it to
+    /// work.
+    /// </remarks>
+    [Fact]
+    public void ABusTriggerWithADecoderForTheFlowsInputIsSilent()
+    {
+        Analyze(DecodedFlowWith(
+            """[BusTrigger("order.requested", Group = "orders", Decode = typeof(ReadPlaceOrder))]"""))
+            .ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// A decoder producing something other than the flow's input is reported.
+    /// </summary>
+    /// <remarks>
+    /// The half that keeps the relaxation above from being a hole. A decoder is only an answer
+    /// to "what starts this flow" if what it produces is what the flow takes; one that produces
+    /// anything else leaves the same gap the rule was closing, with a declaration on top that
+    /// reads as though it were handled.
+    /// </remarks>
+    [Fact]
+    public void ADecoderThatDoesNotProduceTheFlowsInputIsReported()
+    {
+        Analyze(DecodedFlowWith(
+            """[BusTrigger("order.requested", Group = "orders", Decode = typeof(ReserveInventory))]"""))
+            .ShouldBe(["FLOWX1051"]);
     }
 
     // ------------------------------------------------------------- it must fire
@@ -425,7 +486,7 @@ public sealed class TriggerDeclarationAnalyzerTests
             .Select(static d => d.Id)
             .ShouldBe([
                 "FLOWX1025", "FLOWX1038", "FLOWX1039", "FLOWX1041", "FLOWX1042",
-                "FLOWX1045", "FLOWX1049", "FLOWX1048",
+                "FLOWX1045", "FLOWX1049", "FLOWX1048", "FLOWX1051",
             ]);
     }
 

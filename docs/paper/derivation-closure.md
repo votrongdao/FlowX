@@ -264,7 +264,7 @@ asserting that no type reachable from it names a transport, and by a second one 
 that no flow's transitive closure reaches a transport assembly. If a flow *could* name a
 broker, D1 would be a coding convention rather than a property.
 
-**Refusal is a compile error, not a runtime default.** 47 diagnostic identifiers are raised
+**Refusal is a compile error, not a runtime default.** 48 diagnostic identifiers are raised
 by the compiler. The pattern the paper cares about is the one where a declaration that
 *cannot be resolved at build time* is refused rather than defaulted — for example, a
 capability declaring an authorization stance whose value the compiler cannot see. The
@@ -287,7 +287,7 @@ here in the same commit as the producer.
 | Architecture decision records | 68 (67 Accepted, 1 Proposed) |
 | ADRs carrying a `Revisit when` clause | 68 / 68 |
 | Executable fitness functions | 88 declared |
-| Compiler diagnostic identifiers | 47 |
+| Compiler diagnostic identifiers | 48 |
 | Transport / infrastructure adapters | 7 |
 | Published schema field paths | 75 |
 | Compatibility classification rules | 40 (22 breaking, 9 additive, 9 neutral) |
@@ -652,7 +652,7 @@ phases here.
 | 67 Accepted / 1 Proposed | `PaperClaimTests`; note one record states its status inside a blockquote, so an anchored `^\*\*Status` grep undercounts by one |
 | 68 / 68 with `Revisit when` | `rg -l 'Revisit when' docs/adr/ADR-*.md \| wc -l` |
 | 88 fitness functions | `rg -c '\[Fact\]\|\[Theory\]' tests/FlowX.Architecture.Tests/*.cs --no-filename \| paste -sd+ \| bc`; case count from `dotnet test tests/FlowX.Architecture.Tests -c Release` |
-| 47 diagnostic identifiers | `rg -o '"FLOWX1[0-9]{3}"' src/FlowX.Compiler \| cut -d: -f2 \| sort -u \| wc -l` |
+| 48 diagnostic identifiers | `rg -o '"FLOWX1[0-9]{3}"' src/FlowX.Compiler \| cut -d: -f2 \| sort -u \| wc -l` |
 | 7 adapters | `ls plugins/` |
 | 75 schema field paths | walk every `properties` block of `schemas/flowx.manifest.schema.json` |
 | 40 classification rules (22/9/9) | `rg -o 'DiffSeverity\.\w+' src/FlowX.Cli/Diffing/ManifestDiff.cs \| sort \| uniq -c` |

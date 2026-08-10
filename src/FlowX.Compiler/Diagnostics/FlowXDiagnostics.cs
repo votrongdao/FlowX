@@ -1331,6 +1331,48 @@ public static class FlowXDiagnostics
         DiagnosticSeverity.Error);
 
     /// <summary>
+    /// FLOWX1051: a trigger names a decoder that does not produce the flow's input.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>The half that keeps the relaxation honest.</strong> A payload-bearing trigger
+    /// may name a decoder instead of forcing the flow to take the payload, and the four rules
+    /// that would otherwise object stand down when it does. They can only stand down if the
+    /// decoder answers their question — "what starts this flow" — and it answers it only when
+    /// what it produces is what the flow takes. A decoder producing anything else leaves
+    /// exactly the gap those rules were closing, with a declaration on top that reads as
+    /// though it were handled.
+    /// </para>
+    /// <para>
+    /// <strong>Reported on the attribute, not on the decoder.</strong> The decoder is often a
+    /// perfectly good type doing a perfectly good job for another flow; what is wrong is this
+    /// declaration pointing at it. Reporting on the type would send the author to a file that
+    /// has nothing to fix.
+    /// </para>
+    /// <para>
+    /// <strong>An error, for FLOWX1048's reason.</strong> There is no deployment under which a
+    /// value of the wrong type becomes the flow's input, and the generator would have nothing
+    /// to emit — so what a suppression buys is a subscription registered against a flow it
+    /// cannot start.
+    /// </para>
+    /// </remarks>
+    public static readonly DiagnosticDescriptor TriggerDecoderDoesNotProduceTheInput = Create(
+        "FLOWX1051",
+        "Trigger decoder does not produce the flow's input",
+        "Flow '{0}' names decoder '{1}', which does not implement ITriggerDecoder<{2}, {3}>",
+        "A trigger's Decode names the translation from what the transport delivers into what " +
+        "the flow takes, and the four rules that would otherwise require the flow to declare " +
+        "the payload as its input stand down because of it. It can only stand in for them " +
+        "when it produces the flow's own input contract from that transport's payload — so " +
+        "the type must implement ITriggerDecoder<TPayload, TIn> for exactly this trigger's " +
+        "payload and exactly this flow's input. Implement that interface on the named type, " +
+        "or drop Decode and declare the flow over the payload. There is no suppression that " +
+        "makes this work: the generator has nothing to emit for a decoder it cannot call, so " +
+        "what a suppression buys is a subscription registered against a flow no delivery can " +
+        "start.",
+        DiagnosticSeverity.Error);
+
+    /// <summary>
     /// FLOWX1048: a flow declares two triggers whose input contracts cannot both be satisfied.
     /// </summary>
     /// <remarks>
