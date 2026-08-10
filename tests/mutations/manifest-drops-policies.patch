@@ -1,0 +1,13 @@
+diff --git a/src/FlowX.Compiler/Emit/ManifestWriter.cs b/src/FlowX.Compiler/Emit/ManifestWriter.cs
+index ecdf3ea..43729e5 100644
+--- a/src/FlowX.Compiler/Emit/ManifestWriter.cs
++++ b/src/FlowX.Compiler/Emit/ManifestWriter.cs
+@@ -797,7 +797,7 @@ public static class ManifestWriter
+     /// </remarks>
+     private static void WritePolicies(JsonWriter writer, StepModel step)
+     {
+-        var known = step.PolicyKinds.Where(PolicyStages.ContainsKey).ToList();
++        var known = step.PolicyKinds.Where(PolicyStages.ContainsKey).Take(0).ToList();
+ 
+         if (known.Count == 0)
+         {

@@ -1,0 +1,35 @@
+{
+  "$comment": [
+    "Every gate in this repository is supposed to have been proven capable of failing, by a",
+    "mutation that COMPILES — a non-compiling mutation is a false red and proves nothing. That",
+    "practice was manual and unrecorded, so the proof existed in a reviewer's memory and expired",
+    "with it. This register is the practice written down and executed.",
+    "",
+    "It replaces a Stryker job that could not produce a score. Under xUnit v3 every test project",
+    "builds as its own executable; dotnet-stryker 4.16.0 with the VsTest runner injects mutants",
+    "and never activates them, so all 153 tests pass and the score is 0.00 %, and with the",
+    "dotnettest runner it exits 1 after startup with no diagnostic. A tool that cannot measure",
+    "is worse than no tool, because its number is read as one.",
+    "",
+    "What this register measures is narrower and true: for each entry, the named tests fail when",
+    "the patch is applied and pass when it is not. That is a kill, demonstrated, on the gates that",
+    "carry the architecture rules — not a percentage over every mutable line."
+  ],
+  "mutations": [
+    {
+      "patch": "manifest-drops-policies.patch",
+      "kills": "FullyQualifiedName~PublishedContractTests.ManifestIsComplete",
+      "why": "Makes the manifest writer emit no policies array. Six flows across five samples attach a policy, so the document would tell every reader those flows run unpoliced."
+    },
+    {
+      "patch": "transport-option-names-a-flow.patch",
+      "kills": "FullyQualifiedName~DerivationClosureTests.NoTransportOptionNamesAnApplicationConcept",
+      "why": "Puts a per-flow topic into a transport's configuration. The address and the flow it belongs to become two facts in two places, and renaming the flow no longer renames the address."
+    },
+    {
+      "patch": "emitter-without-a-trigger-kind.patch",
+      "kills": "FullyQualifiedName~DerivationClosureTests.EveryTriggerKindThatHasAnAddressIsEmitted",
+      "why": "Adds an emitter that no trigger kind accounts for — a derived surface nobody has decided the rules for."
+    }
+  ]
+}

@@ -343,79 +343,69 @@ jobs:
           dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
   mutation:
-    name: Mutation score (FlowX.Core)
+    name: Mutation kill set
     runs-on: ubuntu-latest
-    # A job with no timeout inherits six hours. This one ran past thirty-five minutes
-    # with no output on the first push where the workflow parsed at all, which reads
-    # as "still working" for the rest of a working day. Twenty-five minutes or it is
-    # a failure somebody looks at.
-    timeout-minutes: 25
+    timeout-minutes: 30
 
-    # ADVISORY, BECAUSE THE HARNESS IS BROKEN AND THE SUITE IS NOT.
+    # BLOCKING, BECAUSE THIS ONE CAN MEASURE. It replaces a Stryker job that could not.
     #
-    # This job reports 0.00 %: 524 mutants tested, 0 killed, 0 errors. That is not a
-    # measurement of the tests. Stryker injects its mutants into the source — the trace
-    # shows `MutantControl.IsActive(n)` throughout the mutated tree — and the xUnit VSTest
-    # adapter then discovers and runs all 153 tests, but no mutant is ever active in the
-    # process that runs them, so every one of them survives by construction.
+    # Under xUnit v3 every test project builds as its own executable, and dotnet-stryker
+    # 4.16.0 does not carry mutant activation across that boundary: it injected 524
+    # mutants, the adapter ran all 153 tests, no mutant was ever active, and the score
+    # was 0.00 % by construction. Scoped to one file it reported 16 of 16 surviving while
+    # the same mutation made by hand failed five tests. Its `dotnettest` runner exits 1
+    # after startup with no diagnostic. A number produced by a tool's own defect still
+    # gets read as a number, which is why it is gone rather than advisory.
     #
-    # PROVEN, NOT ASSUMED. Scoped to CompensationStack.cs alone, Stryker tests 16 mutants
-    # and kills none. Making one of those same mutations by hand — `while (_completed.Count
-    # > 0)` to `> 1` in CompensationStack.Unwind, which compiles clean — fails five tests.
-    # The suite notices mutations; Stryker's do not reach it.
+    # What runs here is narrower and true. tests/mutations/register.json records, for the
+    # gates that carry the architecture rules, a mutation that COMPILES and the tests it
+    # kills. Each is applied, built and run, and is required to go red. A gate that has
+    # never been shown to fail is indistinguishable from a gate that cannot see.
     #
-    # WHY IT IS NOT FIXED HERE. Stryker activates a mutant through an environment variable
-    # the test host reads. The test projects are xUnit v3, which builds each of them as its
-    # own executable, and 4.16.0 — the newest dotnet-stryker on NuGet — does not carry the
-    # activation across that boundary. `test coverage capture failed` on every run is the
-    # same boundary showing itself earlier.
-    #
-    # `--break-at 70` stays at 70. The threshold is not what is wrong, and lowering it to
-    # meet a broken measurement is how a gate becomes a lie. Remove this line — not the
-    # threshold — the moment a run reports a non-zero score.
-    continue-on-error: true
+    # The register's own well-formedness — patches that still apply, filters that still
+    # name a test — is MutationKillSetTests in the architecture suite, which runs on every
+    # push in milliseconds. This job only does the expensive half.
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
         with:
           global-json-file: global.json
 
-      - name: Stryker
-        # Applied to FlowX.Core only, on purpose. Line coverage says which lines
-        # ran; mutation score says whether a test would notice if they were wrong.
-        # FlowX.Core holds the execution semantics, so that distinction matters there.
-        #
-        # RUN FROM THE PROJECT, BECAUSE THE ARGUMENTS BELOW WERE ALWAYS WRITTEN FOR IT.
-        # This step had no working-directory, so it ran at the repository root while
-        # passing `--test-project ../../tests/...` — two levels above the workspace, a
-        # path that does not exist. Stryker therefore never got the one argument the
-        # comment below says is the difference between a job that finishes and one that
-        # does not, and the job has hit its twenty-five-minute ceiling on every run it
-        # has ever had. It read as "still working"; it was scanning everything.
-        working-directory: src/FlowX.Core
+      - name: Every recorded mutation is killed
         run: |
-          if [ ! -f FlowX.Core.csproj ]; then
-            echo "FlowX.Core does not exist yet (WP-2). Nothing to mutate."
-            exit 0
-          fi
-          # Pinned: the flag below was renamed once already, and an unpinned tool
-          # turns that into a red job on a morning nobody changed anything.
-          dotnet tool install --global dotnet-stryker --version 4.16.0
-          # --test-project, or Stryker discovers every test project in the solution and
-          # runs all ~2700 tests against every mutant. That is the difference between a
-          # job that finishes and one that does not: FlowX.Core's own suite is what can
-          # notice a mutation in FlowX.Core.
-          dotnet stryker --project FlowX.Core.csproj \
-            --test-project ../../tests/FlowX.Core.Tests/FlowX.Core.Tests.csproj \
-            --break-at 70 --reporter progress --reporter html
+          set -u
+          failed=0
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        if: always()
-        with:
-          name: mutation-report
-          # Under the project, because the step above runs there. Left at the repository
-          # root this uploads nothing and says so only as a warning nobody reads.
-          path: src/FlowX.Core/StrykerOutput/
+          # jq over the register rather than a hand-kept list in this file: two copies of
+          # the same set is how one of them stops being run without anybody noticing.
+          while IFS=$'\t' read -r patch kills; do
+            echo "::group::$patch"
+
+            if ! git apply "tests/mutations/$patch"; then
+              echo "::error::$patch no longer applies. The proof is stale, not the gate."
+              failed=1
+              echo "::endgroup::"
+              continue
+            fi
+
+            # A build failure here is a FALSE RED and must be reported as one: a mutation
+            # that does not compile proves nothing about the tests, which is the whole
+            # reason every entry in the register is a compiling one.
+            if ! dotnet build FlowX.slnx -c Release --nologo; then
+              echo "::error::$patch does not compile. A non-compiling mutation is not evidence."
+              failed=1
+            elif dotnet test FlowX.slnx -c Release --no-build --filter "$kills"; then
+              echo "::error::$patch was applied and $kills still passed. That gate cannot see the thing it exists to catch."
+              failed=1
+            else
+              echo "$patch killed $kills"
+            fi
+
+            git apply -R "tests/mutations/$patch"
+            echo "::endgroup::"
+          done < <(jq -r '.mutations[] | [.patch, .kills] | @tsv' tests/mutations/register.json)
+
+          exit "$failed"
 
   debt:
     name: Technical-debt policy

@@ -1,0 +1,14 @@
+diff --git a/plugins/FlowX.Kafka/KafkaOptions.cs b/plugins/FlowX.Kafka/KafkaOptions.cs
+index d1f0a33..52dab26 100644
+--- a/plugins/FlowX.Kafka/KafkaOptions.cs
++++ b/plugins/FlowX.Kafka/KafkaOptions.cs
+@@ -54,6 +54,9 @@ public sealed record KafkaOptions
+     /// </remarks>
+     public TimeSpan PollWait { get; init; } = TimeSpan.FromMilliseconds(500);
+ 
++    /// <summary>A per-flow address in a deployment's configuration.</summary>
++    public string PlaceOrderTopic { get; init; } = "order.placed";
++
+     /// <summary>The dead-letter topic for this deployment.</summary>
+     public string DeadLetterTopic => Topic + DeadLetterSuffix;
+ }
