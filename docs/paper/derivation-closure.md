@@ -484,17 +484,42 @@ the same team on the same schema.
 
 ## 7. Related work, and what we do not claim
 
+The problem is old and well characterised. Perry and Wolf [1] separate *erosion* — violating
+an architectural principle — from *drift*, which is insensitivity to the architecture rather
+than a violation of it; the second declarations §2.1 describes are drift in that sense, since
+nobody violates anything by editing a route in one place and not the other. Li et al.'s
+systematic mapping study [2] finds that most detection work targets architectural
+*consistency*, and that erosion is caused by technical and non-technical factors together —
+knowledge vaporisation among them, which is what a fact stated twice and maintained once
+becomes. De Silva and Balasubramaniam [3] survey the control side.
+
+**We do not claim novelty for checking an implementation against an architectural model.**
+Murphy, Notkin and Sullivan's reflexion models [4] map source entities onto an architectural
+model and compute convergences, divergences and absences — the shape every conformance
+checker since has taken. Two things differ here. A reflexion model needs a *separately
+authored* high-level model, which is the second declaration; and it reports divergence rather
+than preventing it, because nothing at runtime consumes the model.
+
 **We do not claim novelty for emitting a machine-readable architecture artifact.** Model
 extraction from code (Structurizr-for-code, jQAssistant, Moose), architecture description
 languages, and build-time IDL emission all predate this by decades. What those approaches
 produce is *descriptive*: nothing at runtime depends on it, so nothing fails when it is
 wrong.
 
+**We do not claim novelty for executable fitness functions.** Ford, Parsons, Kua and
+Sadalage [5] name the concept and the practice of running them in a deployment pipeline; D3
+is that practice applied to D1 and D2, plus one addition we do think is worth stating — that
+a fitness function is evidence only once a *compiling* mutation has been shown to turn it red
+(§8, lesson 3).
+
 **We do not claim novelty for compatibility classification of a published contract.**
-Protobuf with `buf breaking`, and OpenAPI with `oasdiff`, classify changes between two
-versions of a contract. What they do not do is condition the contract's *growth* on a
-classifier existing — a new field is admissible in both, and only later becomes something a
-diff can rule on. D2's clause (b) is the difference.
+`buf breaking` [6] compares a Protobuf schema against a past version and reports what would
+break clients; `oasdiff` [7] does the same for OpenAPI and classifies, by its own count, 509
+distinct kinds of change — an order of magnitude past our 40, because their contracts are an
+order of magnitude wider. What neither does is condition the contract's *growth* on a
+classifier existing: a new field is admissible in both, and only later becomes something a
+diff can rule on. D2's clause (b) is the difference, and it is a small one to state and a
+large one to hold.
 
 **We do not claim novelty for contract-first development.** Smithy, Protobuf and
 OpenAPI-first invert the same relationship we do, in the other direction: the contract is
@@ -561,6 +586,34 @@ one component, and linear rather than super-linear in application size. Whether 
 is worth making is a question about a reader's build, not about ours; what we can offer is
 that the price is measured, the failures are named, and both are reproducible from the
 repository.
+
+---
+
+## References
+
+1. D. E. Perry and A. L. Wolf. *Foundations for the Study of Software Architecture.* ACM
+   SIGSOFT Software Engineering Notes 17(4), 1992. — the erosion / drift distinction §2.1
+   leans on.
+2. R. Li, P. Liang, M. Soliman and P. Avgeriou. *Understanding software architecture erosion:
+   A systematic mapping study.* Journal of Software: Evolution and Process 34(3), 2022.
+   [doi:10.1002/smr.2423](https://onlinelibrary.wiley.com/doi/10.1002/smr.2423) ·
+   [arXiv:2112.10934](https://arxiv.org/abs/2112.10934)
+3. L. de Silva and D. Balasubramaniam. *Controlling software architecture erosion: A survey.*
+   Journal of Systems and Software, 2012.
+   [S0164121211002044](https://www.sciencedirect.com/science/article/abs/pii/S0164121211002044)
+4. G. C. Murphy, D. Notkin and K. Sullivan. *Software Reflexion Models: Bridging the Gap
+   between Source and High-Level Models.* FSE '95, ACM SIGSOFT Software Engineering Notes
+   20(4), 1995. [doi:10.1145/222132.222136](https://dl.acm.org/doi/10.1145/222132.222136)
+5. N. Ford, R. Parsons, P. Kua and P. Sadalage. *Building Evolutionary Architectures:
+   Automated Software Governance.* O'Reilly, 2nd edition, ISBN 9781492097549. (1st edition
+   2017, ISBN 9781491986363.)
+6. Buf. *Detecting breaking changes.* <https://buf.build/docs/breaking/>
+7. oasdiff. *OpenAPI Diff and Breaking Changes.* <https://github.com/oasdiff/oasdiff>
+
+*Still to add before submission: the source-generated .NET mediator and compile-time DI
+projects §7 concedes prior art to, cited by repository rather than by paper; Temporal or
+Cadence for the durable-execution concession; and a citation for the mutation-testing
+literature behind §5.5's kill-set argument.*
 
 ---
 
