@@ -1,0 +1,16 @@
+diff --git a/schemas/flowx.manifest.schema.json b/schemas/flowx.manifest.schema.json
+index f1090bd..ec151bc 100644
+--- a/schemas/flowx.manifest.schema.json
++++ b/schemas/flowx.manifest.schema.json
+@@ -417,7 +417,10 @@
+             }
+           }
+         },
+-        "deprecated": {
++        "ownerTeam": {
++        "type": "string"
++      },
++      "deprecated": {
+           "type": "string"
+         },
+         "owner": {

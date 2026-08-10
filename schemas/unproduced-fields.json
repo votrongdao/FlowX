@@ -1,0 +1,128 @@
+{
+  "$comment": [
+    "Every field path the manifest schema declares and no build has ever produced.",
+    "",
+    "The schema is a published contract with additionalProperties: false at every level, so a",
+    "field in it is a promise. A field nothing writes breaks that promise in the direction",
+    "nobody notices: a consumer reading an absent field is told THIS APPLICATION HAS NONE,",
+    "when the truth is NOBODY LOOKED. Those are opposite facts and an empty document reports",
+    "them identically.",
+    "",
+    "This register is what turns that from a review convention into a gate. Adding a field to",
+    "the schema without a producer now fails ManifestProducerTests until a row is written here",
+    "with a reason, and closing a field fails until its row is removed. The list can shrink and",
+    "cannot silently grow.",
+    "",
+    "HOW THE SET IS COMPUTED. Every path in schemas/flowx.manifest.schema.json, against every",
+    "path present in any manifest a build in this repository emitted -- twelve of them, across",
+    "the platform and every sample. That is the method ADR-0017 section 1 describes and did by",
+    "hand; doing it by hand undercounted, which is the argument for doing it here instead.",
+    "",
+    "A path absent from every emitted manifest is one of two things, and the register says",
+    "which: nothing writes it at all, or something writes it and no application in this",
+    "repository declares the thing it describes. The second is a weaker debt -- the producer",
+    "exists and is untested -- but it is still a field a consumer cannot rely on."
+  ],
+  "unproduced": [
+    {
+      "path": "application.builtAt",
+      "kind": "no producer",
+      "why": "The build knows it. Small to close, and flowx diff ignores it by design (docs/22-CLI.md 2.2), so it would arrive with no classification work."
+    },
+    {
+      "path": "application.commit",
+      "kind": "no producer",
+      "why": "As application.builtAt: the build knows it and the diff ignores it."
+    },
+    {
+      "path": "capabilities.authorization.approvedBy",
+      "kind": "no producer",
+      "why": "[ApprovedBy] exists and PublicCapabilitiesAreReviewed already reads it from source. The compiler does not carry it to the writer."
+    },
+    {
+      "path": "capabilities.deprecated",
+      "kind": "no producer",
+      "why": "Nothing declares deprecation. Closing it is a DSL addition; FLOWX-DIFF-204 already classifies the change."
+    },
+    {
+      "path": "capabilities.owner",
+      "kind": "no producer",
+      "why": "There is no owner attribute. A DSL addition, and the one 13-AI-Native section 3 claims is already carried."
+    },
+    {
+      "path": "capabilities.source",
+      "kind": "no producer",
+      "why": "A flow's source is emitted from the symbol's location; a capability reaches the writer as a step reference, which does not carry one. Closing it means threading the declaration site through the model."
+    },
+    {
+      "path": "events.consumedBy",
+      "kind": "no producer",
+      "why": "Deliberate, and the one row here that is not debt. A subscriber is an estate-wide fact and one compilation sees only its own, so writing it would publish a list that is complete for this service and silently partial for the question anybody asks it (ADR-0039)."
+    },
+    {
+      "path": "events.partitionKey",
+      "kind": "no producer",
+      "why": "Nothing declares one. A DSL addition."
+    },
+    {
+      "path": "extensions",
+      "kind": "no producer",
+      "why": "By design nobody's but the consumer's -- and untested because of it. ADR-0017 F6 makes exercising it a freeze criterion precisely because an escape hatch nobody has used is an escape hatch nobody knows works."
+    },
+    {
+      "path": "flows.input.schema",
+      "kind": "no producer",
+      "why": "Nothing generates JSON Schema for a contract type. The largest of these: it is what OpenAPI, AsyncAPI and agent tool descriptors would be generated from."
+    },
+    {
+      "path": "flows.output.schema",
+      "kind": "no producer",
+      "why": "As flows.input.schema."
+    },
+    {
+      "path": "flows.output.sensitive",
+      "kind": "no producer",
+      "why": "No application marks an output sensitive, and nothing reads such a mark. The leaf name appears in the compiler for an unrelated concept, which is how a hand-audit misses this one."
+    },
+    {
+      "path": "flows.owner",
+      "kind": "no producer",
+      "why": "As capabilities.owner: there is no owner attribute."
+    },
+    {
+      "path": "flows.triggers.transport",
+      "kind": "unexercised",
+      "why": "TriggerReader has written it for [KafkaTrigger] since the reader was written. No sample in this repository declares one, so no emitted manifest carries the field and it has never been exercised end to end."
+    },
+    {
+      "path": "policies",
+      "kind": "no producer",
+      "why": "The top-level catalogue of named policy sets. ManifestWriter writes a policies array PER STEP -- a different path with the same leaf -- and nothing writes this one. ADR-0017's hand audit did not list it, which is the clearest single argument for computing this set rather than maintaining it."
+    },
+    {
+      "path": "policies.name",
+      "kind": "no producer",
+      "why": "Part of the top-level policies catalogue; see policies."
+    },
+    {
+      "path": "policies.policies",
+      "kind": "no producer",
+      "why": "Part of the top-level policies catalogue; see policies."
+    },
+    {
+      "path": "policies.policies.kind",
+      "kind": "no producer",
+      "why": "Part of the top-level policies catalogue; see policies."
+    },
+    {
+      "path": "policies.policies.stage",
+      "kind": "no producer",
+      "why": "Part of the top-level policies catalogue; see policies."
+    },
+    {
+      "path": "schemas",
+      "kind": "no producer",
+      "why": "The top-level contract schema catalogue. Same missing machinery as flows.input.schema."
+    }
+  ]
+}
