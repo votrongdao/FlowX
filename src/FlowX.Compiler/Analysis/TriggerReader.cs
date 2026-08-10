@@ -483,6 +483,23 @@ public static class TriggerReader
     /// so the reader has exactly one answer to "which family is this" and the two cannot
     /// drift apart inside it.
     /// </remarks>
+    /// <summary>
+    /// The fully qualified type a trigger's <c>Decode</c> names, or <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Read here and carried on the model so the emitter can call it, and dropped by
+    /// <c>ManifestWriter</c> so it never reaches the published document — see
+    /// <c>TriggerModel.Decoder</c> for why those are two different decisions rather than an
+    /// oversight. Whether the named type can actually decode is <c>FLOWX1051</c>'s question; a
+    /// reader that judged it would be a second copy of that rule.
+    /// </remarks>
+    private static string? Decoder(AttributeData attribute) =>
+        attribute.NamedArguments
+            .FirstOrDefault(pair => pair.Key == "Decode")
+            .Value.Value is INamedTypeSymbol decoder
+            ? decoder.ToDisplayString()
+            : null;
+
     private static TriggerModel? Shape(AttributeData attribute, string kind) =>
         attribute.AttributeClass?.ToDisplayString() switch
         {
@@ -498,7 +515,8 @@ public static class TriggerReader
             "FlowX.BusTriggerAttribute" => new TriggerModel(
                 kind,
                 topic: Positional(attribute, 0),
-                group: Named(attribute, "Group")),
+                group: Named(attribute, "Group"),
+                decoder: Decoder(attribute)),
 
             "FlowX.KafkaTriggerAttribute" => new TriggerModel(
                 kind,

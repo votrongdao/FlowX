@@ -76,7 +76,7 @@ public sealed class FlowChangeCatalog
     /// </exception>
     /// <remarks>
     /// <para>
-    /// <strong>An ephemeral flow is refused</strong>, for <see cref="FlowBusCatalog.Add"/>'s
+    /// <strong>An ephemeral flow is refused</strong>, for <see cref="FlowBusCatalog.Add(BusSubscription, ExecutionPlan, IStepDispatcher)"/>'s
     /// reason: nothing journals an ephemeral instance, so the id a change derives
     /// (<a href="https://github.com/votrongdao/FlowX/blob/master/docs/adr/ADR-0049-a-change-names-the-instance-it-starts.md">ADR-0049</a>)
     /// is inert and every re-read of an uncommitted cursor position runs the flow again with

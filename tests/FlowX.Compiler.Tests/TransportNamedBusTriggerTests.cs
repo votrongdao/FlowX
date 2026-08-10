@@ -97,6 +97,84 @@ public sealed class TransportNamedBusTriggerTests
             $"[{attribute}] reaches the manifest; a registration is what makes it run.");
     }
 
+    /// <summary>
+    /// A subscription whose flow takes its own contract registers the decode with the
+    /// registration, not a raw delivery.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is what makes the analyzer relaxation safe.</strong> <c>FLOWX1051</c> lets a
+    /// bus trigger name a decoder instead of forcing the flow to be declared over the delivery.
+    /// If the emitter then ignored <c>Decode</c>, the scan would seed a delivery into a flow
+    /// expecting its own contract and the first step would find nothing under the key it binds —
+    /// a compile-time relaxation paid for at run time, which is the worst trade this repository
+    /// makes.
+    /// </para>
+    /// <para>
+    /// The generated starter is asserted rather than the decoder's name alone, because the name
+    /// appearing in a comment would satisfy a weaker check. What has to be there is the call:
+    /// decode, then run the plan on what the decode produced.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void ASubscriptionNamingADecoderRegistersTheDecodeAndNotTheDelivery()
+    {
+        var generated = SubscriptionsIn(RunOn(Decoding, HostingStub));
+
+        generated.ShouldNotBeNull(
+            "A flow whose trigger names a decoder is consumable — that is what the decoder is "
+            + "for. No registration means the delivery reaches nothing.");
+
+        generated.ShouldContain(
+            "new global::Sample.ReadOrder().Decode(message)",
+            customMessage: "The registration must call the decoder the attribute named.");
+
+        generated.ShouldContain(
+            "decoded.Value",
+            customMessage:
+                "The plan must run on what the decoder produced. Running it on the delivery is " +
+                "the defect this whole path exists to prevent.");
+
+        generated.ShouldContain(
+            "decoded.IsFailure",
+            customMessage:
+                "A body that does not parse is a poison message and must become a refusal the " +
+                "scan can dead-letter, never an exception out of a delegate.");
+    }
+
+    /// <summary>A flow taking its own contract, reached through a named decoder.</summary>
+    private const string Decoding = """
+        using System.Threading;
+        using System.Threading.Tasks;
+        using FlowX;
+
+        namespace Sample;
+
+        public sealed record PlaceOrder(string Sku);
+        public sealed record Priced(string Id);
+
+        public sealed class ReadOrder : ITriggerDecoder<BusMessage, PlaceOrder>
+        {
+            public Result<PlaceOrder> Decode(BusMessage payload) => Result.Ok(new PlaceOrder(payload.Type));
+        }
+
+        [Capability("orders.price", Version = "1.0.0", Authorization = Authorization.Internal)]
+        public sealed class Price : ICapability<PlaceOrder, Priced>
+        {
+            public ValueTask<Result<Priced>> ExecuteAsync(
+                PlaceOrder input, CapabilityContext ctx, CancellationToken ct) =>
+                ValueTask.FromResult(Result.Ok(new Priced(input.Sku)));
+        }
+
+        [Flow("orders.price", Version = "1.0.0", Profile = ExecutionProfile.Durable)]
+        [BusTrigger("order.placed", Group = "pricing", Decode = typeof(ReadOrder))]
+        public sealed partial class PriceOrderFlow : Flow<PlaceOrder, Priced>
+        {
+            protected override void Define(IFlowBuilder<PlaceOrder, Priced> flow) =>
+                flow.Step<Price>().Return(ctx => ctx.Get<Priced>());
+        }
+        """;
+
     private static string Consuming(string attribute) => $$"""
         using System.Threading;
         using System.Threading.Tasks;

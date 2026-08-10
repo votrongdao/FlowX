@@ -568,11 +568,16 @@ public static class FlowBusSubscriptionRegistration
     /// <param name="transport">
     /// The broker family the declaration named, or null when it named none.
     /// </param>
+    /// <param name="starter">
+    /// Generated decode-and-run for a flow whose input is its own contract rather than the
+    /// delivery, or null when the flow takes the delivery. See <see cref="BusStarter"/> for why
+    /// this is a delegate the generator writes rather than a decoder this method resolves.
+    /// </param>
     /// <returns>The same provider, so registrations chain.</returns>
     /// <exception cref="ArgumentException">
     /// The flow does not declare <c>Durable</c>, or a broker is wired that does not serve the
     /// declared transport. Both are startup failures on purpose — see
-    /// <see cref="FlowBusCatalog.Add"/>.
+    /// <see cref="FlowBusCatalog.Add(BusSubscription, ExecutionPlan, IStepDispatcher)"/>.
     /// </exception>
     public static IServiceProvider Add(
         IServiceProvider services,
@@ -580,7 +585,8 @@ public static class FlowBusSubscriptionRegistration
         Func<IServiceProvider, IStepDispatcher> dispatcher,
         string topic,
         string group,
-        string? transport = null)
+        string? transport = null,
+        BusStarter? starter = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(plan);
@@ -606,7 +612,8 @@ public static class FlowBusSubscriptionRegistration
         services.GetRequiredService<FlowBusCatalog>().Add(
             new BusSubscription(plan.Flow.Id, plan.Flow.Version, topic, group, transport),
             plan,
-            dispatcher(services));
+            dispatcher(services),
+            starter);
 
         // A consumed instance is a durable instance like any other: a node that dies holding one
         // has abandoned it, and a recovery sweep can only take it over if this node can turn its

@@ -2,10 +2,40 @@ using FlowX.Runtime;
 
 namespace FlowX.Hosting;
 
+/// <summary>
+/// Starts one flow from one delivery, decoding the message into the flow's own input.
+/// </summary>
+/// <param name="host">The host that opens the journal and runs the plan.</param>
+/// <param name="registration">The subscription and the flow it starts.</param>
+/// <param name="invocation">The identity and tenancy this delivery is admitted under.</param>
+/// <param name="message">What the broker delivered.</param>
+/// <param name="instanceId">The id derived from the delivery, so a redelivery folds onto it.</param>
+/// <param name="ct">The scan's cancellation.</param>
+/// <remarks>
+/// <strong>Generated, because generated code is the only place both types are known.</strong>
+/// <see cref="FlowHost.RunAsync{TIn}(ExecutionPlan, IStepDispatcher, FlowInvocation, TIn, Guid, CancellationToken)"/>
+/// seeds the context under <c>TIn</c>'s <em>static</em> type, so a starter that handed the
+/// decoded value over as <c>object</c> would file the flow's input under a key no step looks
+/// up. The scan is not generic over a flow's input and cannot be; the emitted lambda closes
+/// over the decoder and the contract together.
+/// </remarks>
+public delegate ValueTask<FlowExecutionResult> BusStarter(
+    FlowHost host,
+    BusRegistration registration,
+    FlowInvocation invocation,
+    BusMessage message,
+    Guid instanceId,
+    CancellationToken ct);
+
 /// <summary>One subscription this node serves, and the flow it starts.</summary>
 /// <param name="Subscription">What it consumes, and under whose group.</param>
 /// <param name="Flow">The compiled plan and its dispatcher.</param>
-public sealed record BusRegistration(BusSubscription Subscription, FlowRegistration Flow)
+/// <param name="Starter">
+/// How a delivery becomes this flow's input, or <c>null</c> when the flow takes the delivery
+/// itself and the scan can start it directly.
+/// </param>
+public sealed record BusRegistration(
+    BusSubscription Subscription, FlowRegistration Flow, BusStarter? Starter = null)
 {
     /// <summary>The id the instance for one delivery of this subscription is started under.</summary>
     /// <param name="eventId">The message's own identity.</param>
@@ -106,6 +136,18 @@ public sealed class FlowBusCatalog
     /// </para>
     /// </remarks>
     public FlowBusCatalog Add(BusSubscription subscription, ExecutionPlan plan, IStepDispatcher dispatcher)
+        => Add(subscription, plan, dispatcher, starter: null);
+
+    /// <summary>Registers a subscription whose deliveries are decoded into the flow's input.</summary>
+    /// <param name="subscription">What it consumes, and under whose group.</param>
+    /// <param name="plan">The compiled flow.</param>
+    /// <param name="dispatcher">The flow's generated dispatcher.</param>
+    /// <param name="starter">
+    /// The generated decode-and-run, or <c>null</c> for a flow that takes the delivery itself.
+    /// </param>
+    /// <returns>This catalog, so registrations chain.</returns>
+    public FlowBusCatalog Add(
+        BusSubscription subscription, ExecutionPlan plan, IStepDispatcher dispatcher, BusStarter? starter)
     {
         ArgumentNullException.ThrowIfNull(subscription);
         ArgumentNullException.ThrowIfNull(plan);
@@ -137,7 +179,7 @@ public sealed class FlowBusCatalog
         {
             _subscriptions[new SubscriptionKey(
                 subscription.FlowId, subscription.FlowVersion, subscription.Topic, subscription.Group)] =
-                new BusRegistration(subscription, new FlowRegistration(plan, dispatcher));
+                new BusRegistration(subscription, new FlowRegistration(plan, dispatcher), starter);
         }
 
         return this;

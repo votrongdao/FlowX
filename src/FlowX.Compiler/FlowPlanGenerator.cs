@@ -560,7 +560,7 @@ public sealed class FlowPlanGenerator : IIncrementalGenerator
 
             foreach (var trigger in flowTriggers.Triggers)
             {
-                if (IsBusAddress(trigger) && CanBeConsumed(flow))
+                if (IsBusAddress(trigger) && CanBeStartedByADelivery(flow, flowTriggers))
                 {
                     declarations.Add(new DeclaredTriggerModel(
                         flow.FlowId, flow.Version, "Bus", trigger.Topic!));
@@ -726,7 +726,8 @@ public sealed class FlowPlanGenerator : IIncrementalGenerator
 
         foreach (var flow in models)
         {
-            if (!declared.TryGetValue(flow.FlowId, out var flowTriggers) || !CanBeConsumed(flow))
+            if (!declared.TryGetValue(flow.FlowId, out var flowTriggers)
+                || !CanBeStartedByADelivery(flow, flowTriggers))
             {
                 continue;
             }
@@ -739,7 +740,9 @@ public sealed class FlowPlanGenerator : IIncrementalGenerator
                     SubscriptionMethodName(flow.TypeName, names),
                     trigger.Topic!,
                     trigger.Group!,
-                    trigger.Transport));
+                    trigger.Transport,
+                    trigger.Decoder,
+                    trigger.Decoder is null ? null : flow.InputTypeName));
             }
         }
 
@@ -871,6 +874,22 @@ public sealed class FlowPlanGenerator : IIncrementalGenerator
     private static bool CanBeConsumed(FlowModel flow) =>
         string.Equals(flow.InputTypeName, "FlowX.BusMessage", StringComparison.Ordinal) &&
         string.Equals(flow.Profile, "Durable", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Whether a delivery can start this flow: it takes the delivery, or every bus trigger on it
+    /// names a decoder that turns one into what it does take.
+    /// </summary>
+    /// <remarks>
+    /// Requiring the class to be declared over the delivery is what stopped one flow serving a
+    /// bus and a schedule at once — the two payloads disagree and a class has one input type. A
+    /// decoder meets the requirement without the class giving up its own contract, and whether
+    /// the named type can actually do it is <c>FLOWX1051</c>'s question, asked where the
+    /// attribute's own span is.
+    /// </remarks>
+    private static bool CanBeStartedByADelivery(FlowModel flow, FlowTriggersModel triggers) =>
+        string.Equals(flow.Profile, "Durable", StringComparison.Ordinal)
+        && (string.Equals(flow.InputTypeName, "FlowX.BusMessage", StringComparison.Ordinal)
+            || triggers.Triggers.Where(IsBusAddress).All(trigger => trigger.Decoder is not null));
 
     /// <summary>
     /// Emits one registration per <c>[StreamTrigger]</c> the host can actually read, or nothing

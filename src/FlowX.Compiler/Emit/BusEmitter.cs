@@ -169,7 +169,41 @@ public static class BusEmitter
         writer.Line("        " + Quote(subscription.Group) + ",");
         writer.Line(
             "        " +
-            (subscription.Transport is null ? "null" : Quote(subscription.Transport)) + ");");
+            (subscription.Transport is null ? "null" : Quote(subscription.Transport)) +
+            (subscription.DecoderTypeName is null ? ");" : ","));
+
+        if (subscription.DecoderTypeName is null)
+        {
+            return;
+        }
+
+        // The decode closes over both concrete types here and nowhere else. FlowBusScan is not
+        // generic over a flow's input, and FlowHost.RunAsync<TIn> seeds the context under TIn's
+        // *static* type — so a delegate handing the value over as object would file the input
+        // under a key no step looks up. Generated code is the one place both types are known.
+        //
+        // A decoder that refuses is a poison message: the result is a rejection carrying its
+        // Error, which the scan's own disposition rules dead-letter with a reason an operator
+        // can read (ADR-0038). It is never an exception and never a silent acknowledgement.
+        writer.Line("        static (host, registration, invocation, message, instanceId, ct) =>");
+        writer.Line("        {");
+        writer.Line(
+            "            var decoded = new global::" + subscription.DecoderTypeName +
+            "().Decode(message);");
+        writer.Line();
+        writer.Line("            return decoded.IsFailure");
+        writer.Line(
+            "                ? new global::System.Threading.Tasks.ValueTask<global::FlowX.Runtime.FlowExecutionResult>(");
+        writer.Line(
+            "                    global::FlowX.Runtime.FlowExecutionResult.Rejected(decoded.Error))");
+        writer.Line("                : host.RunAsync(");
+        writer.Line("                    registration.Flow.Plan,");
+        writer.Line("                    registration.Flow.Dispatcher,");
+        writer.Line("                    invocation,");
+        writer.Line("                    decoded.Value,");
+        writer.Line("                    instanceId,");
+        writer.Line("                    ct);");
+        writer.Line("        });");
     }
 
     private static string Quote(string value) =>

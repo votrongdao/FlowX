@@ -101,7 +101,7 @@ public sealed class FlowBusScan
     /// False when nothing registered a subscription, and false when no journal was registered. The
     /// second is not a configuration to work around: without a primary key to refuse a redelivery,
     /// a subscription would start a flow per delivery of one message and nothing would record that
-    /// it had — the silent failure <see cref="FlowBusCatalog.Add"/> refuses at registration. A host
+    /// it had — the silent failure <see cref="FlowBusCatalog.Add(BusSubscription, ExecutionPlan, IStepDispatcher)"/> refuses at registration. A host
     /// with no subscriptions is not misconfigured and simply does not run the loop.
     /// </remarks>
     public bool IsEnabled => _subscriptions.Count > 0 && _host.IsDurabilityConfigured;
@@ -258,29 +258,36 @@ public sealed class FlowBusScan
         var message = delivery.Message!;
         var instanceId = registration.InstanceIdFor(message.EventId);
 
-        var result = await _host
-            .RunAsync(
-                registration.Flow.Plan,
-                registration.Flow.Dispatcher,
+        // Every field of the invocation below is the same either way; only who seeds the
+        // context differs. A subscription whose flow takes its own contract carries a
+        // generated starter that decodes first — see BusStarter for why the decode cannot
+        // happen here.
+        // The correlation id is the event's, so the emitting instance's log lines and the
+        // consuming instance's carry one id between them; the causation id is the instance this
+        // delivery started. There is no inbound request to inherit either from, and minting a
+        // fresh correlation per node would make one message look like several.
+        //
+        // The tenant is the message's own field, written beside the body by the publishing side
+        // and never read out of the payload (docs/16 §3). Attested and not IsContinuation: this
+        // is a start, so every step's stance is still decided.
+        var invocation = new FlowInvocation(
+            message.EventId.ToString("d"),
+            instanceId.ToString(),
+            message.TenantId,
+            TenantAttested: true);
 
-                // The correlation id is the event's, so the emitting instance's log lines and the
-                // consuming instance's carry one id between them; the causation id is the
-                // instance this delivery started. There is no inbound request to inherit either
-                // from, and minting a fresh correlation per node would make one message look like
-                // several.
-                //
-                // The tenant is the message's own field, written beside the body by the
-                // publishing side and never read out of the payload (docs/16 §3). Attested and
-                // not IsContinuation: this is a start, so every step's stance is still decided.
-                new FlowInvocation(
-                    message.EventId.ToString("d"),
-                    instanceId.ToString(),
-                    message.TenantId,
-                    TenantAttested: true),
-                message,
-                instanceId,
-                ct)
-            .ConfigureAwait(false);
+        var result = registration.Starter is { } start
+            ? await start(_host, registration, invocation, message, instanceId, ct)
+                .ConfigureAwait(false)
+            : await _host
+                .RunAsync(
+                    registration.Flow.Plan,
+                    registration.Flow.Dispatcher,
+                    invocation,
+                    message,
+                    instanceId,
+                    ct)
+                .ConfigureAwait(false);
 
         var disposition = DispositionFor(result);
 

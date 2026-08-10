@@ -35,13 +35,20 @@ public sealed class BusSubscriptionModel
     /// <param name="topic">The topic, exactly as the manifest states it.</param>
     /// <param name="group">The consumer group, exactly as the manifest states it.</param>
     /// <param name="transport">The broker family, or null when the attribute names none.</param>
+    /// <param name="decoderTypeName">
+    /// The type translating a delivery into the flow's input, or null when the flow takes the
+    /// delivery itself.
+    /// </param>
+    /// <param name="inputTypeName">The flow's input contract, which the decoder must produce.</param>
     public BusSubscriptionModel(
         string flowId,
         string flowTypeName,
         string methodName,
         string topic,
         string group,
-        string? transport)
+        string? transport,
+        string? decoderTypeName = null,
+        string? inputTypeName = null)
     {
         FlowId = flowId;
         FlowTypeName = flowTypeName;
@@ -49,6 +56,8 @@ public sealed class BusSubscriptionModel
         Topic = topic;
         Group = group;
         Transport = transport;
+        DecoderTypeName = decoderTypeName;
+        InputTypeName = inputTypeName;
     }
 
     /// <summary>The flow's business id.</summary>
@@ -68,4 +77,10 @@ public sealed class BusSubscriptionModel
 
     /// <summary>The broker family, or null when the declaration names none.</summary>
     public string? Transport { get; }
+
+    /// <summary>The decoder's fully qualified type, or null when the flow takes the delivery.</summary>
+    public string? DecoderTypeName { get; }
+
+    /// <summary>The flow's input contract, or null when no decoder is named.</summary>
+    public string? InputTypeName { get; }
 }

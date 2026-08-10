@@ -41,6 +41,11 @@ public sealed class TriggerModel : IEquatable<TriggerModel>
     /// <param name="timeZone">IANA time zone the cron expression is evaluated in.</param>
     /// <param name="description">Tool description shown to a model, for an <c>Agent</c> trigger.</param>
     /// <param name="confirmation">Human confirmation requirement, for an <c>Agent</c> trigger.</param>
+    /// <param name="decoder">
+    /// The fully qualified type translating this transport's payload into the flow's input, or
+    /// <c>null</c> when the flow takes the payload itself. Never published: it names an
+    /// implementation type, which is neither an address nor a term of the contract.
+    /// </param>
     public TriggerModel(
         string kind,
         string? method = null,
@@ -52,7 +57,8 @@ public sealed class TriggerModel : IEquatable<TriggerModel>
         string? cron = null,
         string? timeZone = null,
         string? description = null,
-        string? confirmation = null)
+        string? confirmation = null,
+        string? decoder = null)
     {
         Kind = kind;
         Method = method;
@@ -65,10 +71,24 @@ public sealed class TriggerModel : IEquatable<TriggerModel>
         TimeZone = timeZone;
         Description = description;
         Confirmation = confirmation;
+        Decoder = decoder;
     }
 
     /// <summary>The transport family, as the schema's <c>kind</c> enum spells it.</summary>
     public string Kind { get; }
+
+    /// <summary>
+    /// The type that turns this transport's payload into the flow's input, or <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Read, and deliberately never written to the manifest.</strong> It is the name of
+    /// an implementation type in this assembly — not an address a caller uses and not a term of
+    /// the published contract — so publishing it would put a private name into a document
+    /// consumers pin, and give <c>flowx diff</c> a change nobody outside the build can act on.
+    /// That is the same line <c>MaxInFlight</c> and <c>DeadLetter</c> sit on the far side of
+    /// (<a href="https://github.com/votrongdao/FlowX/blob/master/docs/adr/ADR-0039-a-bus-subscription-publishes-no-new-manifest-field.md">ADR-0039</a>).
+    /// </remarks>
+    public string? Decoder { get; }
 
     /// <summary>HTTP method, or <c>null</c>.</summary>
     public string? Method { get; }
@@ -117,6 +137,12 @@ public sealed class TriggerModel : IEquatable<TriggerModel>
         {
             Kind, Method, Route, Transport, Topic, Group, Cron, TimeZone, Description, Confirmation,
             Idempotent?.ToString(),
+
+            // Included although it is never published, because this key is also this model's
+            // equality — and the incremental generator caches on equality. Two triggers alike
+            // but for their decoder would otherwise compare equal, and swapping a decoder
+            // would leave the previous build's registration in place.
+            Decoder,
         }.Select(part => part ?? string.Empty));
 
     /// <inheritdoc />
