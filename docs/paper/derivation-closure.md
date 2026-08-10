@@ -526,9 +526,13 @@ and a longitudinal account of the three places the closure broke.
    the failure mode: a field published without its value silently disabled a breaking-change
    rule that already existed. Nobody noticed, because a rule that cannot fire looks exactly
    like a rule that has nothing to report.
-3. **A gate must be shown to fail.** Prove it with a mutation that *compiles*. A gate
-   compared against a budget you already miss reports the same verdict before and after a
-   regression.
+3. **A gate must be shown to fail, and "shown" means the mutation was actually run.** Prove
+   it with a mutation that *compiles* — a non-compiling one is a false red. Two of ours passed
+   review and failed the demonstration: a gate compared against a budget the project already
+   missed reported the same verdict before and after a 4.9× regression, and a paper-figure
+   check asserting only that the right number appears *somewhere* in the text survived a
+   deliberately wrong claim, because the same digits occurred two lines away. Both looked
+   correct while reading. Neither was.
 4. **On shared CI, gate a deterministic proxy.** Measure the noise floor first; substitute
    only when the substitution is 3 orders of magnitude quieter; print the real metric anyway.
 5. **A revisit trigger fires silently unless something reads it.** Every one of our 68
@@ -594,7 +598,16 @@ argument rather than data, and are marked here rather than dressed up:
    in a comparable system that has one. A defensible version needs either a controlled
    comparison or a mined history of address-configuration defects in a project of similar
    shape.
-2. **The completeness of D1's coverage.** §3.1's two gates assert that no transport option
+2. **The paper's own figures are gated, which is the artifact-evaluation claim.** Every
+   corpus count above is pinned by `PaperClaimTests`: a pattern locates the claim in this
+   file and its captured figure must equal what the repository yields. Cloning, building and
+   running the suite is therefore the reproduction, and a disagreement is a red test naming
+   both values. It caught three stale counts the first time it ran — one of them a miscount
+   this paper had carried, because the grep it came from anchors `**Status:**` to the start of
+   a line and one record states its status inside a blockquote. The gate's own first spelling
+   was weaker than it looked and is described in §8, lesson 3.
+
+3. **The completeness of D1's coverage.** §3.1's two gates assert that no transport option
    names an application concept and that every trigger kind has an emitter. Neither proves
    that the *set* of trigger kinds is the set of externally addressable surfaces — a surface
    reached by something that is not a trigger would satisfy both gates and violate D1. The
