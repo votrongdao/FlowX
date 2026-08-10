@@ -13,8 +13,18 @@ public static class Program
     /// Runs the benchmarks. With no arguments every benchmark runs; pass
     /// <c>--filter</c> to narrow, as with any BenchmarkDotNet host.
     /// </summary>
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
+        // `percentiles`, because BenchmarkDotNet cannot answer the budget as written: its
+        // statistics are over iterations, and an iteration is a mean of many invocations, so a
+        // percentile of them is a percentile of averages. See LatencyPercentiles.cs.
+        if (args is ["percentiles", ..])
+        {
+            await LatencyPercentiles.RunAsync().ConfigureAwait(false);
+
+            return;
+        }
+
         var config = ManualConfig.Create(DefaultConfig.Instance)
             // JSON is what scripts/check-benchmark-budgets.py reads. Markdown is what
             // a human reads in the CI log; both are produced so the gate and the

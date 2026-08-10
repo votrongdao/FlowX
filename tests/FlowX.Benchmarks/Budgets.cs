@@ -7,10 +7,23 @@ namespace FlowX.Benchmarks;
 /// <remarks>
 /// <para>
 /// Duplicated from the document deliberately: a budget that lives only in prose is
-/// a budget nothing can fail against. The budget-checking script reads these values
-/// from the benchmark output, so this table and the document must agree — and when
-/// they disagree, the document is the one that gets corrected, because it is the
-/// one a human reads before deciding a number is "close enough".
+/// a budget nothing can fail against.
+/// </para>
+/// <para>
+/// <strong>This file said a script read it, and none did.</strong> The claim was that
+/// "the budget-checking script reads these values from the benchmark output";
+/// <c>scripts/check-benchmark-budgets.py</c> reads <c>docs/benchmarks/baseline.json</c>
+/// and has never referenced this table, and a search for <c>Budgets.</c> across the
+/// repository returned nothing at all. Three budgets stated in percentiles sat in a file
+/// with no reader, and the two written as p99 had never been measured by anything —
+/// BenchmarkDotNet computes its statistics over iterations, and an iteration is a mean.
+/// </para>
+/// <para>
+/// <c>LatencyPercentiles</c> now measures them per invocation and prints the distribution
+/// beside these numbers: <c>dotnet run -c Release --project tests/FlowX.Benchmarks --
+/// percentiles</c>. It prints and does not fail, because a shared runner cannot resolve a
+/// tail — so these are still not gated, and that is now a statement about the hardware
+/// rather than about the harness.
 /// </para>
 /// <para>
 /// Only the budgets that are <em>measurable today</em> appear here. The rest are
