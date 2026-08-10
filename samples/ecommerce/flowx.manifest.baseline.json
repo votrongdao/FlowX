@@ -280,7 +280,11 @@
   "events": [
     {
       "type": "order.placed",
-      "schemaVersion": "1.0.0"
+      "schemaVersion": "1.0.0",
+      "producedBy": [
+        "order.confirm",
+        "order.place"
+      ]
     }
   ]
 }

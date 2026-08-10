@@ -453,6 +453,18 @@ public sealed class ManifestWriterTests
     }
 
     [Fact]
+    public void NamesTheFlowsThatEmitAnEvent()
+    {
+        // Absence has to mean "nothing emits this", which it cannot while the field is
+        // declared in the schema and written by nothing: a reader then cannot tell an
+        // unproduced event from a compiler that never looked (ADR-0017 F1).
+        using var document = Parse(Write(Models.PlaceOrder()));
+
+        document.RootElement.GetProperty("events")[0].GetProperty("producedBy")
+            .EnumerateArray().Select(f => f.GetString()).ShouldBe(["order.place"]);
+    }
+
+    [Fact]
     public void EscapesCharactersThatWouldBreakTheJson()
     {
         var awkward = new FlowModel(

@@ -835,6 +835,34 @@ public sealed class ManifestDiffTests
     }
 
     [Fact]
+    public void GainingAProducerIsNeutralAndReported()
+    {
+        var report = Diff(candidate => candidate.Events[0].ProducedBy.Add("order.replay"));
+
+        Fired(report, "FLOWX-DIFF-207").Severity.ShouldBe(DiffSeverity.Neutral);
+    }
+
+    [Fact]
+    public void LosingOneOfSeveralProducersIsNeutralAndReported()
+    {
+        // Neutral because a subscriber handles the event and not its producer. The case
+        // that does break — the LAST producer going — is the event leaving the catalogue,
+        // which FLOWX-DIFF-020 already classifies as Breaking.
+        var report = Diff(
+            baseline => baseline.Events[0].ProducedBy.Add("order.replay"),
+            candidate => { });
+
+        Fired(report, "FLOWX-DIFF-207").Severity.ShouldBe(DiffSeverity.Neutral);
+        NotFired(report, "FLOWX-DIFF-020");
+    }
+
+    [Fact]
+    public void AnUnchangedProducerListIsNotReported()
+    {
+        NotFired(Diff(candidate => { }), "FLOWX-DIFF-207");
+    }
+
+    [Fact]
     public void AddingAnEventIsAdditive()
     {
         var report = Diff(candidate => candidate.Events.Add(

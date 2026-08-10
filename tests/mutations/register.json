@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Every gate in this repository is supposed to have been proven capable of failing, by a",
-    "mutation that COMPILES — a non-compiling mutation is a false red and proves nothing. That",
+    "mutation that COMPILES \u2014 a non-compiling mutation is a false red and proves nothing. That",
     "practice was manual and unrecorded, so the proof existed in a reviewer's memory and expired",
     "with it. This register is the practice written down and executed.",
     "",
@@ -13,7 +13,7 @@
     "",
     "What this register measures is narrower and true: for each entry, the named tests fail when",
     "the patch is applied and pass when it is not. That is a kill, demonstrated, on the gates that",
-    "carry the architecture rules — not a percentage over every mutable line."
+    "carry the architecture rules \u2014 not a percentage over every mutable line."
   ],
   "mutations": [
     {
@@ -29,7 +29,12 @@
     {
       "patch": "emitter-without-a-trigger-kind.patch",
       "kills": "FullyQualifiedName~DerivationClosureTests.EveryTriggerKindThatHasAnAddressIsEmitted",
-      "why": "Adds an emitter that no trigger kind accounts for — a derived surface nobody has decided the rules for."
+      "why": "Adds an emitter that no trigger kind accounts for \u2014 a derived surface nobody has decided the rules for."
+    },
+    {
+      "patch": "event-has-no-producers.patch",
+      "kills": "FullyQualifiedName~ManifestWriterTests.NamesTheFlowsThatEmitAnEvent",
+      "why": "Suppresses producedBy for any event with a single producer. A reader then cannot tell an event nothing emits from one the compiler did not look at, which is the failure ADR-0017 F1 catalogues."
     }
   ]
 }

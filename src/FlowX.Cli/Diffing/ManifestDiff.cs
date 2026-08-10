@@ -1025,6 +1025,74 @@ public static class ManifestDiff
                 Summary = "added",
             });
         }
+
+        CompareProducers(findings, before, after);
+    }
+
+    /// <summary>
+    /// Reports a change in which flows emit an event.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Neutral, and that is a ruling rather than a shrug.</strong> A subscriber's code
+    /// does not change when a second flow starts emitting an event it already handles, and it
+    /// does not break when one of several producers stops — the event is still published, and
+    /// the case where the <em>last</em> producer stops is the event leaving the catalogue,
+    /// which <c>FLOWX-DIFF-020</c> already classifies as breaking. So nothing here can break a
+    /// consumer, and saying so is the point: the alternative is a field that changes silently,
+    /// which makes the whole report a subset claim instead of a total one.
+    /// </para>
+    /// <para>
+    /// <strong>Reported anyway, because a human acts on it.</strong> "Who do I talk to when
+    /// this event is wrong" is answered by this list and by nothing else in the document, and
+    /// a reviewer reading a release diff is the reader it is for.
+    /// </para>
+    /// </remarks>
+    private static void CompareProducers(
+        List<DiffFinding> findings,
+        Dictionary<string, ManifestEvent> before,
+        Dictionary<string, ManifestEvent> after)
+    {
+        foreach (var (key, candidate) in after)
+        {
+            if (!before.TryGetValue(key, out var baseline))
+            {
+                continue;
+            }
+
+            var gained = candidate.ProducedBy.Except(baseline.ProducedBy, StringComparer.Ordinal).ToList();
+            var lost = baseline.ProducedBy.Except(candidate.ProducedBy, StringComparer.Ordinal).ToList();
+
+            if (gained.Count == 0 && lost.Count == 0)
+            {
+                continue;
+            }
+
+            findings.Add(new DiffFinding
+            {
+                Code = "FLOWX-DIFF-207",
+                Severity = DiffSeverity.Neutral,
+                Subject = "event " + key,
+                Summary = DescribeProducerChange(gained, lost),
+            });
+        }
+    }
+
+    private static string DescribeProducerChange(List<string> gained, List<string> lost)
+    {
+        var parts = new List<string>(2);
+
+        if (gained.Count > 0)
+        {
+            parts.Add("now also emitted by " + string.Join(", ", gained.OrderBy(f => f, StringComparer.Ordinal)));
+        }
+
+        if (lost.Count > 0)
+        {
+            parts.Add("no longer emitted by " + string.Join(", ", lost.OrderBy(f => f, StringComparer.Ordinal)));
+        }
+
+        return string.Join("; ", parts);
     }
 
     // -------------------------------------------------------------------- plumbing

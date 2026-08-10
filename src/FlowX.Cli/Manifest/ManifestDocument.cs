@@ -340,6 +340,16 @@ public sealed class ManifestEvent
     /// <summary>SemVer of the event's payload contract.</summary>
     [JsonPropertyName("schemaVersion")]
     public string? SchemaVersion { get; set; }
+
+    /// <summary>The flows in this application that emit the event.</summary>
+    /// <remarks>
+    /// Total for the assembly that publishes the manifest, which is what makes it diffable:
+    /// the compiler walks every <c>Emit</c> step it compiles, so a producer missing from this
+    /// list is a producer that is not there. The neighbouring <c>consumedBy</c> is the
+    /// opposite shape — estate-wide, unknowable from one compilation — and stays unwritten.
+    /// </remarks>
+    [JsonPropertyName("producedBy")]
+    public List<string> ProducedBy { get; set; } = [];
 }
 
 /// <summary>A capability's authorisation stance.</summary>

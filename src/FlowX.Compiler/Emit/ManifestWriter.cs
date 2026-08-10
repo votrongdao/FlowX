@@ -122,6 +122,7 @@ public static class ManifestWriter
             writer.OpenObject();
             writer.Property("type", evt);
             writer.Property("schemaVersion", EventSchemaVersion);
+            WriteProducers(writer, ordered, evt);
             writer.CloseObject();
         }
 
@@ -955,6 +956,55 @@ public static class ManifestWriter
         {
             yield return step.Compensation;
         }
+    }
+
+    /// <summary>Writes the flows that emit an event.</summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>The fact was already walked; only the writing was missing.</strong>
+    /// <see cref="CollectEvents"/> reaches every <c>Emit</c> step of every flow to build the
+    /// catalogue and then discards which flow each one came from. Publishing it costs a
+    /// second pass over a list already in hand and closes one of the rows
+    /// <a href="https://github.com/votrongdao/FlowX/blob/master/docs/adr/ADR-0017-manifest-v1-freeze-criteria.md">ADR-0017</a>
+    /// tables as declared-but-never-written — and a field the schema declares and nothing
+    /// writes is worse than a missing field, because absence reads as "this application has
+    /// none" rather than as "nobody looked".
+    /// </para>
+    /// <para>
+    /// <strong>Producers, not consumers.</strong> The neighbouring <c>consumedBy</c> stays
+    /// empty and that is not an oversight: a subscriber is an estate-wide fact and one
+    /// compilation can only see its own, so writing it here would publish a list that is
+    /// complete for this service and silently partial for the question anybody asks it
+    /// (<a href="https://github.com/votrongdao/FlowX/blob/master/docs/adr/ADR-0039-a-bus-subscription-publishes-no-new-manifest-field.md">ADR-0039</a>).
+    /// A producer is the opposite: an event is emitted by the flows of the assembly that
+    /// publishes the manifest, so this list is total by construction.
+    /// </para>
+    /// </remarks>
+    private static void WriteProducers(JsonWriter writer, IEnumerable<FlowModel> flows, string eventType)
+    {
+        var producers = flows
+            .Where(flow => flow.AllSteps.Any(step =>
+                step.Kind == StepKindModel.Emit
+                && string.Equals(step.EventType, eventType, System.StringComparison.Ordinal)))
+            .Select(flow => flow.FlowId)
+            .Distinct(System.StringComparer.Ordinal)
+            .OrderBy(id => id, System.StringComparer.Ordinal)
+            .ToList();
+
+        if (producers.Count == 0)
+        {
+            return;
+        }
+
+        writer.PropertyName("producedBy");
+        writer.OpenArray();
+
+        foreach (var producer in producers)
+        {
+            writer.Value(producer);
+        }
+
+        writer.CloseArray();
     }
 
     private static IEnumerable<string> CollectEvents(IEnumerable<FlowModel> flows) => flows

@@ -112,7 +112,6 @@ public sealed class MutationKillSetTests
     {
         var declared = SourceSurvey
             .SourceFiles("tests")
-            .Where(file => file.Directory?.Name == "FlowX.Architecture.Tests")
             .SelectMany(file => File.ReadAllText(file.FullName).Split('\n'))
             .Select(line => line.Trim())
             .Where(line => line.StartsWith("public void ", StringComparison.Ordinal))
@@ -121,8 +120,8 @@ public sealed class MutationKillSetTests
 
         declared.Count.ShouldBeGreaterThan(
             0,
-            "No test method was found in this project's own source, so this check has no "
-            + "names to compare the register against.");
+            "No test method was found under tests/, so this check has no names to compare "
+            + "the register against.");
 
         var missing = Register()
             .Select(entry => entry.Kills.Split('~')[^1])
