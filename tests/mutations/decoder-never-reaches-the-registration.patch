@@ -1,0 +1,13 @@
+diff --git a/src/FlowX.Compiler/Emit/BusEmitter.cs b/src/FlowX.Compiler/Emit/BusEmitter.cs
+index b922897..5b4b393 100644
+--- a/src/FlowX.Compiler/Emit/BusEmitter.cs
++++ b/src/FlowX.Compiler/Emit/BusEmitter.cs
+@@ -200,7 +200,7 @@ public static class BusEmitter
+         writer.Line("                    registration.Flow.Plan,");
+         writer.Line("                    registration.Flow.Dispatcher,");
+         writer.Line("                    invocation,");
+-        writer.Line("                    decoded.Value,");
++        writer.Line("                    message,");
+         writer.Line("                    instanceId,");
+         writer.Line("                    ct);");
+         writer.Line("        });");

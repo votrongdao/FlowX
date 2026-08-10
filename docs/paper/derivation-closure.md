@@ -167,6 +167,14 @@ written once. A test drives the same booking down both addresses in one process 
 the same reference and the same total, so this is a property of the running system rather
 than of the generated text.
 
+**The limit was real, and half of it has since been removed.** The paragraph below describes
+the constraint as it stood; a trigger may now name a *decoder* — a pure translation from what
+the transport delivers into what the flow declares — and the compiler then stops requiring the
+class to be declared over the payload. That is implemented for the bus family and not yet for
+schedules or streams, so the four-class sample is still four classes as this is written. The
+constraint is stated in full because it is what the design has to answer, and because a paper
+that described only the fixed half would be describing a system nobody can check out.
+
 **The limit is worth stating precisely, because it is the one place the model costs
 something.** A trigger that delivers a payload dictates what the flow's input type must be: a
 schedule can hand over only its occurrence, a bus delivery or an outbox change only the

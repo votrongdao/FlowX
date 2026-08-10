@@ -50,6 +50,11 @@
       "patch": "one-flows-second-address-moves.patch",
       "kills": "FullyQualifiedName~AgentSurfaceTests.OneFlowWithTwoTriggersAnswersTheSameOverBoth",
       "why": "Moves the route on a flow that carries two triggers, so its second address is no longer where the flow declares it. Deleting the attribute outright was tried first and is a FALSE RED: it is the assembly's only [HttpTrigger], so FlowXEndpoints.g.cs is not generated at all and the host stops compiling — a mutation that does not build proves nothing about the tests."
+    },
+    {
+      "patch": "decoder-never-reaches-the-registration.patch",
+      "kills": "FullyQualifiedName~TransportNamedBusTriggerTests.ASubscriptionNamingADecoderRegistersTheDecodeAndNotTheDelivery",
+      "why": "Makes the generated starter run the plan on the raw delivery instead of on what the decoder produced. FLOWX1051 lets a flow keep its own input contract because a decoder bridges the gap; if the emitter drops that, the relaxation is paid for at run time by a first step that finds nothing under the key it binds."
     }
   ]
 }
