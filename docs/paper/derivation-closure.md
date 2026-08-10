@@ -159,6 +159,28 @@ the integration surface is a function of some subset of that:
 | Metric label set | the steps that actually execute |
 | Agent tool descriptor | capabilities marked exposable |
 
+**One class, several addresses — as far as the type system allows, and no further.** A flow
+carries its triggers as attributes, and stacking them yields one address each from a single
+declaration: `booking.book` declares `[HttpTrigger]` and `[AgentTrigger]` and the build emits
+both an HTTP route and an agent tool descriptor, from one class, with the business steps
+written once. A test drives the same booking down both addresses in one process and requires
+the same reference and the same total, so this is a property of the running system rather
+than of the generated text.
+
+**The limit is worth stating precisely, because it is the one place the model costs
+something.** A trigger that delivers a payload dictates what the flow's input type must be: a
+schedule can hand over only its occurrence, a bus delivery or an outbox change only the
+message, a closed window only its records. A class has one input type, so two triggers from
+that group cannot share one — the compiler refuses it as an error, with a diagnostic that
+exists specifically because the four narrower rules would otherwise send an author round a
+loop, each telling them to declare the contract the next one rejects. HTTP and agent triggers
+are exempt: they bind whatever the flow already declares, which is why that pair stacks and
+the others do not. The consequence is visible in our own samples, where one business
+operation reachable over four transports is four classes whose step bodies are byte-identical
+below the first decoding step. Portability therefore holds over the capability chain rather
+than over the flow class, and a design that moved the decoder onto the trigger attribute
+would close the gap — that is not built, and the paper should not imply it is.
+
 **One declared root per trigger, and everything else derived.** The precise form of the rule
 matters, and the table above understates it in one direction and overstates it in another.
 The author *does* declare one address — the route on an HTTP trigger, the topic on a bus
