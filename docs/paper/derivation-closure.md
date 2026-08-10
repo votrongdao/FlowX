@@ -159,12 +159,30 @@ the integration surface is a function of some subset of that:
 | Metric label set | the steps that actually execute |
 | Agent tool descriptor | capabilities marked exposable |
 
-The important column is the right one. Each entry is a *function*, so it is total: given a
-graph, the surface exists and is unique. There is no adapter option that overrides it. The
-consequence a practitioner feels immediately is that **renaming a flow renames its
-endpoints, its signal endpoints, its scheduler address and its OpenAPI operation ids in one
-commit, and a compatibility classifier reports all four as breaking**, which is precisely
-what a hand-maintained configuration cannot do.
+**One declared root per trigger, and everything else derived.** The precise form of the rule
+matters, and the table above understates it in one direction and overstates it in another.
+The author *does* declare one address — the route on an HTTP trigger, the topic on a bus
+trigger, the expression on a schedule — because those are genuinely the application's to
+choose and there is nothing to derive them from. What D1 forbids is the *second* address:
+the signal endpoint, the dead-letter destination, the callback the scheduler uses, the
+operation id in the generated document. Each of those is a function of the declared root
+plus the graph, and none of them appears in any configuration file.
+
+The deployment still has configuration, and D1 is a statement about what may be in it. A
+transport's options record carries roots and shapes — a broker's bootstrap servers, the root
+topic, the prefix a queue name is built from, the suffix a dead-letter destination takes —
+and no per-flow name at all. That is the checkable form, and it is what our gate asserts: no
+string literal in any transport's options may name a flow, a capability or an event that a
+real compilation produced. A second gate asserts the other direction — that every trigger
+kind with an external address has a compiler emitter that derives it, and that every emitter
+belongs to a trigger kind. Both were proven by a mutation that compiles: adding
+`public string PlaceOrderTopic { get; init; } = "order.placed";` to one transport's options
+turns the first red, and an unclassified emitter turns the second red.
+
+The consequence a practitioner feels immediately is that **renaming a flow renames its
+signal endpoints, its scheduler callback, its dead-letter destination and its OpenAPI
+operation ids in one commit, and a compatibility classifier reports the change**, which is
+precisely what a hand-maintained configuration cannot do.
 
 The consequence a practitioner feels three months later is the constraint: **you cannot
 special-case one deployment.** §5.4 covers the three times this hurt.
@@ -246,7 +264,7 @@ here in the same commit as the producer.
 |---|---|
 | Architecture decision records | 68 (66 Accepted, 1 Proposed, 1 template) |
 | ADRs carrying a `Revisit when` clause | 68 / 68 |
-| Executable fitness functions | 79 |
+| Executable fitness functions | 81 declared, 99 cases with theories expanded |
 | Compiler diagnostic identifiers | 47 |
 | Transport / infrastructure adapters | 7 |
 | Published schema field paths | 75 |
@@ -524,7 +542,7 @@ phases here.
 | 68 ADRs | `ls docs/adr/ADR-*.md \| wc -l` |
 | 66 Accepted / 1 Proposed / 1 template | `rg -n '^\*\*Status:\*\*' docs/adr/*.md --no-filename \| sort \| uniq -c` |
 | 68 / 68 with `Revisit when` | `rg -l 'Revisit when' docs/adr/ADR-*.md \| wc -l` |
-| 79 fitness functions | `rg -c '\[Fact\]\|\[Theory\]' tests/FlowX.Architecture.Tests/*.cs --no-filename \| paste -sd+ \| bc` |
+| 81 fitness functions / 99 cases | `rg -c '\[Fact\]\|\[Theory\]' tests/FlowX.Architecture.Tests/*.cs --no-filename \| paste -sd+ \| bc`; case count from `dotnet test tests/FlowX.Architecture.Tests -c Release` |
 | 47 diagnostic identifiers | `rg -o '"FLOWX1[0-9]{3}"' src/FlowX.Compiler \| cut -d: -f2 \| sort -u \| wc -l` |
 | 7 adapters | `ls plugins/` |
 | 75 schema field paths | walk every `properties` block of `schemas/flowx.manifest.schema.json` |
@@ -546,7 +564,8 @@ argument rather than data, and are marked here rather than dressed up:
    in a comparable system that has one. A defensible version needs either a controlled
    comparison or a mined history of address-configuration defects in a project of similar
    shape.
-2. **The completeness of D1's coverage.** §3.1's table is written from the adapters we have.
-   A fitness function that enumerates every externally addressable surface and asserts each
-   is derived would turn that table from a description into a measurement, and does not
-   exist yet.
+2. **The completeness of D1's coverage.** §3.1's two gates assert that no transport option
+   names an application concept and that every trigger kind has an emitter. Neither proves
+   that the *set* of trigger kinds is the set of externally addressable surfaces — a surface
+   reached by something that is not a trigger would satisfy both gates and violate D1. The
+   remaining work is an enumeration of addressable surfaces independent of the trigger model.
