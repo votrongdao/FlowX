@@ -72,7 +72,7 @@ jobs:
         ports:
           - 1433:1433
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
         with:
           global-json-file: global.json
@@ -250,7 +250,7 @@ jobs:
         working-directory: samples/crm-web
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
@@ -287,7 +287,7 @@ jobs:
     # missing secret would just teach contributors that red is normal.
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0   # Sonar needs history for new-code detection
 
@@ -375,7 +375,7 @@ jobs:
     # threshold — the moment a run reports a non-zero score.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
         with:
           global-json-file: global.json
@@ -438,7 +438,7 @@ jobs:
     # a rule that already has one — to be kept in step by hand, forever, with no
     # test that they agree.
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: No unaccountable TODOs
         # Every tree that ships or is read as an example, not just src and tests. A
