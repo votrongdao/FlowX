@@ -31,7 +31,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <!--
       CompilerBenchmarks (B12) drives the generator over a real compilation. Pinned to
       the version BenchmarkDotNet already brings rather than to the compiler's own 4.8.0
