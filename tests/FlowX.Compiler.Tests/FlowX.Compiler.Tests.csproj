@@ -13,7 +13,7 @@
       against a hand-written list of field names. Structural assertions drift from the
       schema; this cannot.
     -->
-    <PackageReference Include="JsonSchema.Net" Version="7.3.3" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
   </ItemGroup>
 
   <ItemGroup>
