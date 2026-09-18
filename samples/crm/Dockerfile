@@ -20,7 +20,14 @@ WORKDIR /src
 
 # Restore before the source is copied, so a change to a .cs file does not re-download the world.
 # The glob keeps every project's file at the path the solution expects.
-COPY global.json Directory.Build.props FlowX.slnx .editorconfig ./
+#
+# `SonarLint.xml` is in this list because `Directory.Build.props` declares it as an
+# `AdditionalFiles` for every project. Left out, the file is missing at the path the analyzers are
+# handed, and the build does not degrade to "no Sonar rules" — it fails, with `CS2001` for the
+# missing source file and one `AD0001` per rule that tried to read it. CI never sees this: it
+# checks the whole repository out, so the file is simply there. Only a build whose context is
+# assembled by hand, like this one, can leave it behind.
+COPY global.json Directory.Build.props FlowX.slnx .editorconfig SonarLint.xml ./
 COPY src/ src/
 COPY plugins/ plugins/
 COPY samples/crm/ samples/crm/
