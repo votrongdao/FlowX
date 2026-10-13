@@ -45,7 +45,7 @@ jobs:
     name: The template compiles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Build the Bicep
         # Runs before anything is deployed and before anything is built, because a template
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: azure
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - uses: azure/login@a65d910e8af852a8061c627c456678983e180302  # v2
         with:

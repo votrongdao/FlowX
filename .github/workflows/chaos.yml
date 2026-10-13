@@ -87,7 +87,7 @@ jobs:
     name: The QR2 verdict can fail, and does not gate the latency
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: The rig's opt-in is three-way, and the middle case is a failure
         # `scripts/run-chaos-qr2.sh` skips with a reason when FLOWX_CHAOS is unset and FAILS
@@ -260,7 +260,7 @@ jobs:
           --health-retries 20
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4
         with:
           global-json-file: global.json
